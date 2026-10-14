@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package skt;
+
+service Sensor {
+  rpc Kirim (Bacaan) returns (Status);
+}
+
+message Bacaan {
+  string node_id    = 1;
+  double nilai      = 2;
+  int64  waktu      = 3;
+  string request_id = 4;
+  int64  seq        = 5;
+}
+
+message Status {
+  bool diterima = 1;
+  bool duplikat = 2;
+}

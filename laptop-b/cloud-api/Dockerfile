@@ -1,0 +1,10 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN if [ -f sensor.proto ]; then \
+      python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. sensor.proto; \
+    fi
+EXPOSE 8000 50051
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

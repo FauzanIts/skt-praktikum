@@ -1,0 +1,12 @@
+services:
+  cloud-api:
+    build: ./cloud-api
+    ports:
+      - "9090:8000"
+    env_file: .env
+    volumes:
+      - data-cloud:/data
+    restart: unless-stopped
+
+volumes:
+  data-cloud:

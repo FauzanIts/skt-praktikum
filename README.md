@@ -25,16 +25,26 @@ skt-praktikum/
 ├── echo-service/              # Praktikum 1 — echo service (verifikasi interkoneksi)
 │   ├── echo_service.py
 │   └── Dockerfile
-└── laptop-a/                  # Modul 2 — sisi edge
-    ├── .env.example           # templat konfigurasi (salin jadi .env)
-    ├── docker-compose.yml     # service: edge-api + sensor-sim
-    ├── edge-api/
-    │   ├── app.py             # GET /  (echo)  ·  POST /bacaan
-    │   ├── kirim.py           # pengirim REST (timeout 1 s, maks 3 coba)
-    │   ├── requirements.txt
-    │   └── Dockerfile
-    └── sensor-sim/
-        ├── sensor.py          # kirim bacaan suhu tiap 2 detik
+├── laptop-a/                  # Modul 2 — sisi edge
+│   ├── .env.example           # templat konfigurasi (salin jadi .env)
+│   ├── docker-compose.yml     # service: edge-api + sensor-sim
+│   ├── edge-api/
+│   │   ├── app.py             # GET /  (echo)  ·  POST /bacaan
+│   │   ├── kirim.py           # pengirim REST (timeout 1 s, maks 3 coba)
+│   │   ├── sensor.proto       # kontrak gRPC — WAJIB identik dengan laptop-b
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   └── sensor-sim/
+│       ├── sensor.py          # kirim bacaan suhu tiap 2 detik
+│       └── Dockerfile
+└── laptop-b/                  # Modul 2 — sisi cloud
+    ├── .env.example
+    ├── docker-compose.yml     # service: cloud-api
+    └── cloud-api/
+        ├── app.py             # endpoint REST (FastAPI)
+        ├── penyimpanan.py     # SQLite + logika IDEMPOTEN & LAMBAT_PERSEN
+        ├── sensor.proto       # kontrak gRPC — WAJIB identik dengan laptop-a
+        ├── requirements.txt
         └── Dockerfile
 ```
 
@@ -93,6 +103,50 @@ Bila `cloud-api` mati, `edge-api` akan mencoba 3 kali lalu melaporkan `terkirim:
 | Laptop A | `POST http://<ip-laptop-a>:8080/bacaan` | terima bacaan dari `sensor-sim`, teruskan ke cloud |
 | Laptop B | `POST http://<ip-laptop-b>:9090/bacaan` | simpan bacaan (idempoten bila `IDEMPOTEN=1`) |
 | Laptop B | `GET  http://<ip-laptop-b>:9090/bacaan?terakhir=N` | ambil N bacaan terakhir |
+
+---
+
+## Menjalankan Laptop B (sisi cloud)
+
+```powershell
+cd laptop-b
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose logs -f cloud-api
+```
+
+`.env` yang perlu diperiksa:
+
+| Variabel | Arti |
+|----------|------|
+| `IDEMPOTEN` | `0` = kiriman ulang menghasilkan **data ganda** · `1` = diperiksa lewat `request_id`, **tidak ada data ganda** |
+| `LAMBAT_PERSEN` | Persentase balasan yang sengaja diperlambat, meniru server sibuk |
+| `LAMBAT_MS` | Lama perlambatan satu balasan (ms). Perlambatan terjadi **setelah** data tersimpan |
+| `DB_PATH` | Lokasi SQLite di dalam container (di named volume `data-cloud`) |
+
+Uji dari Laptop A (bukan dari Laptop B):
+
+```powershell
+curl http://192.168.137.1:9090/statistik
+# {"baris_tersimpan":0,"request_id_unik":0,"data_ganda":0}
+```
+
+Halaman dokumentasi otomatis FastAPI: `http://192.168.137.1:9090/docs`
+
+> Untuk mengosongkan data lama saat mengulang percobaan C.6: `docker compose down -v`
+
+---
+
+## Kontrak gRPC — `sensor.proto`
+
+Berkas `sensor.proto` **harus byte-identik** di `laptop-a/edge-api/` dan `laptop-b/cloud-api/`.
+Satu karakter berbeda sudah cukup membuat kedua sisi salah paham. Verifikasi dengan:
+
+```powershell
+Get-FileHash .\sensor.proto -Algorithm MD5
+```
+
+Hash harus sama di kedua laptop. Bila beda, **jangan lanjut** — error protobuf sulit dilacak.
 
 ---
 
