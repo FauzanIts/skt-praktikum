@@ -1,3 +1,37 @@
-modul1.txt
-modul2.txt
+# --- Materi modul (materi berlisensi dosen, jangan diunggah) ---
+modul*.txt
+*.pdf
+
+# --- Environment nyata: berisi IP & konfigurasi jaringan tiap kelompok ---
+# Yang diunggah adalah .env.example, bukan .env
 .env
+**/.env
+**/.env.local
+**/.env.*.local
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.python-version
+
+# --- Log & artefak runtime ---
+*.log
+logs/
+hasil/
+data/
+
+# --- Editor & OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Berkas sementara pengukuran / scratch ---
+cek_*.py
+tmp/
