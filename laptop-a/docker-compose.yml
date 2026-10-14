@@ -1,0 +1,16 @@
+services:
+  edge-api:
+    build: ./edge-api
+    ports:
+      - "8080:8000"
+    env_file: .env
+    restart: unless-stopped
+
+  sensor-sim:
+    build: ./sensor-sim
+    environment:
+      EDGE_URL: http://edge-api:8000
+      INTERVAL_S: "2"
+    depends_on:
+      - edge-api
+    restart: unless-stopped

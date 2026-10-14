@@ -1,0 +1,435 @@
+
+
+===== PAGE 1 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 1 dari 12 
+ 
+KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI 
+UNIVERSITAS TADULAKO 
+FAKULTAS TEKNIK — JURUSAN TEKNOLOGI INFORMASI 
+PROGRAM STUDI S1 TEKNIK INFORMATIKA 
+Kampus Bumi Tadulako Tondo, Jl. Soekarno Hatta Km. 9, Palu — Sulawesi Tengah 
+Telp. (0451) 422611 – 422355  |  Fax. (0451) 422844  |  Email: untad@untad.ac.id 
+ 
+MODUL PRAKTIKUM — MATA KULIAH SISTEM KOMPUTASI TERDISTRIBUSI (F09252022) 
+ 
+Mata Kuliah Sistem Komputasi Terdistribusi Kode Mata Kuliah F09252022 
+Program Studi S1 Teknik Informatika Semester 5 (Lima) 
+Beban Studi 3 SKS (2 SKS teori + 1 SKS praktikum) Pekan Ke- 3 (Tiga) 
+Judul Praktikum Praktikum 1 — Penyiapan Lingkungan Dua Host dan Verifikasi Interkoneksi 
+Dosen Pengampu Rizka Ardiansyah, S.Kom., M.Kom. 
+A.  TUJUAN PRAKTIKUM (SUB-CPMK) 
+Setelah menyelesaikan praktikum ini, mahasiswa diharapkan mampu: 
+No. Tujuan Pembelajaran Praktikum Level 
+1 Menjelaskan perbedaan virtual machine dan container serta perannya sebagai node pada sistem terdistribusi. C2 
+2 Mengonfigurasi interkoneksi dua host melalui jaringan ad-hoc dan memverifikasi keterjangkauannya. C3 
+3 Menjalankan container yang service-nya dapat diakses dari host lain melalui jaringan. C3 
+4 Mengukur RTT antarhost dan membuktikan adanya clock skew antarhost. C3 
+ 
+Pemetaan Capaian Pembelajaran 
+Kode Rumusan Capaian Pembelajaran 
+CPL-07 
+Memahami (C2) dan menerapkan (C3) protokol komunikasi dan arsitektur 
+infrastruktur komputer dan data untuk merancang sistem komunikasi yang andal dan 
+efisien (bahan kajian) dalam konteks layanan teknologi informasi modern (konteks). 
+CPMK-2 
+Mahasiswa mampu menerapkan konsep sistem komputasi terdistribusi ke dalam 
+purwarupa aplikasi berbasis integrasi edge–cloud, menggunakan perangkat dan 
+platform laboratorium sesuai spesifikasi studi kasus, dengan keberfungsian dan 
+kelengkapan dokumentasi minimal kategori Cukup (skala ≥ 3). 
+Sub-CPMK 4 
+Mengimplementasikan mekanisme komunikasi dan koordinasi antarproses pada 
+layanan terdistribusi yang tersebar di dua host fisik terinterkoneksi, menggunakan 
+kontainer dan pustaka komunikasi yang ditetapkan. 
+ 
+
+
+===== PAGE 2 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 2 dari 12 
+Alokasi Waktu 
+Tahapan Kegiatan Alokasi Waktu 
+Pre-Test – 
+Pelaksanaan Praktikum – 
+Post-Test – 
+Total Alokasi Waktu (sesuai RPS Pekan ke-3) 170 menit 
+ 
+B.  LANDASAN TEORI 
+B.1  Mengapa Harus Dua Host 
+Seluruh materi mata kuliah ini berdiri di atas satu premis: sistem terdistribusi tersusun dari elemen 
+komputasi yang otonom. Masing -masing punya jam, memori, dan kendali sendiri, tetapi bagi 
+penggunanya tampak sebagai satu sistem yang koheren. Premis itu mudah diucapkan, tetapi sulit 
+dirasakan bila seluruh percobaan dijalankan di satu laptop. 
+Menjalankan semua container di satu host memang lebih praktis. Namun tiga gejala inti mata kuliah ini 
+jadi tidak bisa diamati. RTT jaringan mendekati nol sehingga tidak terukur. Partisi jaringan hanya bisa 
+ditiru lewat konfigurasi, bukan dialami. Yang pali ng menentukan, seluruh proses berbagi satu jam 
+sistem, sehingga clock skew hilang sama sekali. Padahal clock skew adalah alasan keberadaan seluruh 
+materi sinkronisasi pada Pertemuan 5. 
+Dengan dua laptop yang terhubung melalui jaringan ad -hoc, ketiganya hadir secara nyata. Anda bisa 
+mengukur RTT dalam milidetik. Anda bisa memutus koneksi dengan mematikan hotspot, lalu 
+menyaksikan sebagian sistem tetap hidup sementara sebagian lain tidak t erjangkau. Anda juga bisa 
+membuktikan sendiri bahwa jam kedua laptop tidak pernah persis sama. Jadi penyiapan lingkungan 
+pada modul ini bukan pekerjaan administratif sebelum praktikum dimulai. Penyiapan inilah 
+praktikumnya. 
+B.2  Virtual Machine dan Container 
+Sebuah node dalam sistem terdistribusi tidak harus berupa komputer fisik. Node bisa berupa virtual 
+machine atau container, selama ia punya identitas jaringan sendiri dan menjalankan prosesnya sendiri. 
+Keduanya menyediakan pemisahan, tetapi dengan cara dan ongkos yang berbeda. 
+Virtual machine berjalan di atas hypervisor dan memuat guest OS yang lengkap. Pemisahannya kuat 
+karena setiap virtual machine punya kernel sendiri, tetapi ongkosnya besar: ukurannya dalam gigabyte 
+dan waktu mulainya puluhan detik. Container mengambil jalan lain. Ia berbagi kernel host OS dan hanya 
+membungkus aplikasi beserta library yang dibutuhkannya. Akibatnya container jauh lebih ringan dan 
+mulai dalam hitungan detik, dengan pemisahan yang lebih longgar. 
+
+===== PAGE 3 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 3 dari 12 
+ 
+Gambar 1.1  Perbandingan susunan virtual machine dan container 
+Dalam rangkaian praktikum mata kuliah ini, keduanya punya peran berbeda. Container dipakai untuk 
+seluruh service karena ringan dan cepat dijalankan berulang kali. Virtual machine dipakai di Laptop B 
+mulai Praktikum 5 sebagai wadah cloud tier, sekaligus agar Anda mengalami langsung materi 
+virtualisasi yang dibahas pada Pertemuan 11. Sampai Praktikum 4, container di kedua laptop berjalan 
+langsung di atas host. 
+B.3  Alamat, Port, dan Batas localhost 
+Service yang dijalankan di satu laptop biasanya cukup diakses melalui alamat 127.0.0.1 atau nama 
+localhost. Alamat itu adalah alamat loopback: ia selalu menunjuk ke laptop yang sedang Anda pakai dan 
+tidak pernah keluar dari laptop tersebut. Selama semua komponen berada di satu laptop, ini tidak 
+menimbulkan masalah. 
+Begitu service harus dijangkau dari host lain, alamat loopback tidak lagi memadai. Service harus di-bind 
+ke alamat yang bisa dijangkau dari jaringan. Alamat 0.0.0.0 berarti "listen di seluruh network interface 
+yang dimiliki host ini", sehingga request dari  laptop seberang bisa diterima. Inilah kekeliruan paling 
+sering pada praktikum semacam ini: service berjalan tanpa error dan terbuka normal dari  laptop 
+sendiri, tetapi tidak pernah bisa diakses dari laptop pasangannya. 
+ 
+Gambar 1.2  Perbedaan bind service ke 127.0.0.1 dan ke 0.0.0.0 
+
+
+===== PAGE 4 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 4 dari 12 
+Di Docker, persoalan ini diselesaikan lewat port publishing. Opsi -p memetakan port di host ke port di 
+dalam container, dan secara bawaan pemetaan itu dibuka di seluruh network interface host. Selain itu, 
+alamat host tidak boleh ditulis mati di dalam kode, karena alamat dari hotspot bisa berubah setiap kali 
+jaringan disusu n ulang. Alamat sebaiknya dibaca dari file konfigurasi, variabel lingkungan, atau 
+argumen program. 
+B.4  RTT dan Clock Skew 
+Round-trip time atau RTT adalah selisih antara saat sebuah request dikirim dan saat balasannya 
+diterima. Keduanya diukur dengan jam pengirim. Karena diukur oleh satu jam yang sama, angka ini bisa 
+dipercaya. Pada jaringan ad -hoc antarlaptop, nilainya biasan ya beberapa milidetik: kecil, tetapi jelas 
+bukan nol. 
+Persoalannya lain ketika kita ingin tahu kapan tepatnya penerima memproses pesan tersebut. Waktu 
+yang dicatat penerima berasal dari jam penerima, dan jam kedua laptop tidak pernah persis sama. 
+Selisih itu disebut clock skew. Protokol sinkronisasi waktu seperti NTP bisa memperkecilnya, tetapi 
+tidak pernah menghilangkannya. Pada jaringan ad -hoc tanpa akses internet, sinkroni sasi itu bahkan 
+mungkin tidak berjalan sama sekali. 
+ 
+Gambar 1.3  RTT dan clock skew antara dua host 
+Konsekuensinya penting dan akan Anda pakai berulang kali: dua peristiwa di host berbeda tidak bisa 
+diurutkan hanya berdasarkan timestamp fisiknya. 
+C.  IMPLEMENTASI PRAKTIKUM 
+C.1  Persiapan Sebelum Praktikum 
+Pengunduhan dan pemasangan perangkat lunak dilakukan sebelum pekan praktikum dimulai. Alokasi 
+170 menit tidak akan cukup bila pemasangan baru dimulai saat praktikum berjalan. Pastikan kelompok 
+Anda memenuhi kebutuhan berikut. 
+Kebutuhan Keterangan 
+Jumlah laptop Minimal 2 unit per kelompok. Satu berperan sebagai edge host, satu sebagai cloud host. 
+Sistem operasi Windows 10 versi 2004 ke atas, atau Windows 11. 
+
+
+===== PAGE 5 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 5 dari 12 
+Kebutuhan Keterangan 
+Memori 
+8 GB untuk edge host. 8 GB minimum untuk cloud host; 16 GB sangat 
+dianjurkan karena cloud host menjalankan virtual machine mulai 
+Praktikum 5. 
+Ruang penyimpanan Sisa ruang minimal 20 GB di masing-masing laptop. 
+Perangkat lunak Docker Desktop dengan backend WSL 2, Python 3.11 atau lebih baru, browser, dan Visual Studio Code. 
+Jaringan Laptop B mampu menyalakan Mobile hotspot, atau tersedia satu kabel Ethernet beserta adaptor USB-LAN bila laptop tidak punya port LAN. 
+ 
+Docker Desktop di Windows mensyaratkan WSL 2 sudah aktif. Bila belum, jalankan perintah berikut di 
+PowerShell sebagai Administrator, lalu restart komputer. 
+wsl --install 
+wsl --set-default-version 2 
+Kode 1.1  Mengaktifkan WSL 2 sebagai prasyarat Docker Desktop 
+Setelah Docker Desktop terpasang dan berjalan, pastikan Docker Engine sudah aktif dengan memeriksa 
+versinya. 
+docker --version 
+docker run --rm hello-world 
+Kode 1.2  Verifikasi pemasangan Docker 
+C.2  Pembagian Peran dan Topologi Sasaran 
+Tetapkan peran kedua laptop sejak awal dan pertahankan pembagian itu sampai akhir semester. Peran 
+yang konsisten memudahkan penelusuran ketika terjadi masalah, dan kelompok tidak perlu menyusun 
+ulang lingkungan setiap pekan. 
+ Laptop A Laptop B 
+Peran arsitektural Edge host Cloud host 
+Penyedia jaringan Menyambung sebagai client hotspot, alamat 192.168.137.x (dinamis) Menyalakan Mobile hotspot, alamat 192.168.137.1 (tetap) 
+Yang dijalankan Container langsung di atas host 
+Container langsung di atas host; 
+virtual machine berisi container mulai 
+Praktikum 5 
+Dipakai pada Praktikum 1 sampai 5 Praktikum 1 sampai 5 
+ 
+Laptop B yang menyalakan hotspot karena cloud host membutuhkan alamat tetap. Laptop A cukup 
+menyambung sebagai client, dan alamatnya boleh berubah. Pembagian ini menjadi penting pada 
+Praktikum 2, ketika edge host mulai mengirim data ke cloud host. 
+Topologi yang harus tercapai di akhir modul ini digambarkan berikut. Alamat Laptop A pada gambar 
+hanya contoh; alamat sebenarnya harus dibaca dari perintah ipconfig di Laptop A. 
+
+===== PAGE 6 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 6 dari 12 
+ 
+Gambar 1.4  Topologi sasaran dua host beserta container dan port yang di-publish 
+C.3  Membangun Interkoneksi Dua Host 
+Ada dua cara menghubungkan kedua laptop. Cara pertama memakai Mobile hotspot bawaan Windows 
+dan tidak butuh perangkat tambahan. Cara kedua memakai kabel Ethernet dan lebih stabil, tetapi butuh 
+adaptor USB-LAN bila laptop tidak punya port LAN. 
+•   Cara 1, Mobile hotspot. Di Laptop B, buka Settings, lalu Network & internet, lalu Mobile hotspot. 
+Nyalakan sakelarnya, catat nama jaringan dan password-nya, lalu sambungkan Laptop A ke jaringan 
+tersebut seperti menyambung ke Wi-Fi biasa. 
+•   Cara 2, kabel Ethernet langsung. Hubungkan kedua laptop dengan satu kabel Ethernet. Windows 
+akan memberi alamat otomatis pada rentang 169.254.x.x. Alamat ini tetap bisa dipakai untuk 
+seluruh kegiatan praktikum; gunakan alamat Laptop B sebagai pengganti 192.168.137.1 di seluruh 
+modul. 
+
+
+===== PAGE 7 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 7 dari 12 
+ 
+Gambar 1.5  Panel Mobile hotspot pada Windows Settings di Laptop B 
+Peringatan penting.  Jangan menghubungkan kedua  laptop melalui Wi -Fi kampus. Sebagian besar 
+access point institusi mengaktifkan client isolation, yaitu pemblokiran lalu lintas antarperangkat yang 
+tersambung ke access point yang sama. Kedua laptop akan tampak tersambung ke internet dengan 
+normal, tetapi tidak akan pernah bisa saling menjangkau. Gejala ini sering disangka masalah firewall 
+atau kesalahan konfigurasi Docker, sehingga waktu praktikum habis tanpa hasil. 
+C.4  Verifikasi Keterjangkauan 
+Sebelum menjalankan apa pun, pastikan kedua laptop benar-benar bisa saling menjangkau. Urutan 
+pemeriksaan berikut disusun dari lapisan terbawah ke atas, sehingga bila ada kegagalan Anda tahu 
+persis letaknya. 
+ 
+Gambar 1.6  Urutan verifikasi keterjangkauan beserta daftar periksa bila ping tidak berbalas 
+
+
+===== PAGE 8 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 8 dari 12 
+Langkah pertama, baca alamat IPv4 di kedua laptop. Windows menampilkan banyak adapter, jadi ambil 
+alamat dari adapter yang benar-benar dipakai untuk hotspot atau kabel. 
+REM di Laptop B (penyedia hotspot) 
+C:\> ipconfig 
+Wireless LAN adapter Local Area Connection* 10: 
+   IPv4 Address. . . . . . . . . . . : 192.168.137.1 
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0 
+  
+REM di Laptop A (client hotspot) 
+C:\> ipconfig 
+Wireless LAN adapter Wi-Fi: 
+   IPv4 Address. . . . . . . . . . . : 192.168.137.53 
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0 
+   Default Gateway . . . . . . . . . : 192.168.137.1 
+Kode 1.3  Membaca alamat IPv4 di Laptop B dan Laptop A 
+Langkah kedua, uji keterjangkauan dari Laptop A ke Laptop B, lalu ulangi dari Laptop B ke alamat Laptop 
+A. Kedua arah harus berhasil. 
+REM di Laptop A 
+C:\> ping 192.168.137.1 
+  
+Pinging 192.168.137.1 with 32 bytes of data: 
+Reply from 192.168.137.1: bytes=32 time=4ms TTL=128 
+Reply from 192.168.137.1: bytes=32 time=3ms TTL=128 
+Reply from 192.168.137.1: bytes=32 time=6ms TTL=128 
+Reply from 192.168.137.1: bytes=32 time=4ms TTL=128 
+  
+Ping statistics for 192.168.137.1: 
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss), 
+Approximate round trip times in milli-seconds: 
+    Minimum = 3ms, Maximum = 6ms, Average = 4ms 
+Kode 1.4  Menguji keterjangkauan dengan perintah ping 
+Bila ping tidak berbalas padahal kedua laptop berada di hotspot yang sama, penyebab paling sering 
+adalah Windows Defender Firewall yang memblokir ICMP. Jalankan perintah berikut di Command 
+Prompt sebagai Administrator, di kedua laptop. Perintah kedua sekal igus membuka port yang dipakai 
+pada bagian berikutnya. 
+REM jalankan sebagai Administrator 
+netsh advfirewall firewall add rule name="ICMP Praktikum SKT" ^ 
+    protocol=icmpv4:8,any dir=in action=allow 
+netsh advfirewall firewall add rule name="Port 8080 Praktikum SKT" ^ 
+    protocol=TCP dir=in localport=8080 action=allow 
+Kode 1.5  Membuka ICMP dan port 8080 pada Windows Defender Firewall 
+C.5  Menjalankan Container yang Terjangkau dari Host Lain 
+Uji pertama memakai image nginx bawaan, agar persoalan jaringan bisa dipisahkan dari persoalan kode. 
+Jalankan perintah berikut di Laptop A. 
+docker run -d -p 8080:80 --name uji-jaringan nginx 
+docker ps 
+Kode 1.6  Menjalankan container nginx dengan port 8080 di-publish 
+
+===== PAGE 9 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 9 dari 12 
+Kemudian buka alamat Laptop A dari Laptop B, lewat browser atau perintah curl. Jangan mengujinya 
+dari Laptop A sendiri. Halaman sambutan nginx harus muncul. 
+REM di Laptop B, ganti 192.168.137.53 dengan alamat Laptop A 
+C:\> curl http://192.168.137.53:8080 
+<!DOCTYPE html> 
+<html> 
+<head><title>Welcome to nginx!</title></head> 
+... 
+Kode 1.7  Mengakses container di Laptop A dari Laptop B 
+Bila langkah ini berhasil, jaringan , firewall, dan port publishing sudah benar seluruhnya. Hentikan dan 
+hapus container uji sebelum melanjutkan. 
+docker rm -f uji-jaringan 
+Kode 1.8  Membersihkan container uji 
+C.6  Echo Service Lintas Host 
+Selanjutnya Anda membangun echo service sendiri yang mengembalikan identitas host dan waktu 
+menurut jamnya. Output inilah yang nanti dipakai untuk mengukur clock skew. Di Laptop A, buat folder 
+echo-service di dalam repositori kelompok skt-praktikum, lalu buat file berikut di folder itu. 
+import json, socket, time 
+from http.server import BaseHTTPRequestHandler, HTTPServer 
+  
+  
+class Penangan(BaseHTTPRequestHandler): 
+    def do_GET(self): 
+        data = { 
+            "host": socket.gethostname(), 
+            "waktu_unix": time.time(), 
+            "waktu_lokal": time.strftime("%H:%M:%S"), 
+        } 
+        badan = json.dumps(data).encode("utf-8") 
+        self.send_response(200) 
+        self.send_header("Content-Type", "application/json") 
+        self.send_header("Content-Length", str(len(badan))) 
+        self.end_headers() 
+        self.wfile.write(badan) 
+  
+    def log_message(self, *args): 
+        pass 
+  
+  
+if __name__ == "__main__": 
+    # 0.0.0.0 berarti listen di seluruh network interface, 
+    # bukan hanya di localhost. Lihat kembali Gambar 1.2. 
+    HTTPServer(("0.0.0.0", 8000), Penangan).serve_forever() 
+Kode 1.9  File echo_service.py 
+Bungkus echo service tersebut ke dalam container, agar cara menjalankannya sama di host mana pun. 
+Buat file Dockerfile di folder yang sama. 
+
+===== PAGE 10 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 10 dari 12 
+FROM python:3.12-slim 
+WORKDIR /app 
+COPY echo_service.py . 
+EXPOSE 8000 
+CMD ["python", "echo_service.py"] 
+Kode 1.10  File Dockerfile untuk echo service 
+Bangun image-nya, lalu jalankan. Port 8080 tetap dipakai di sisi host agar aturan firewall yang sudah 
+dibuat tetap berlaku. 
+docker build -t echo-edge . 
+docker run -d -p 8080:8000 --name edge-api echo-edge 
+docker logs edge-api 
+Kode 1.11  Membangun image dan menjalankan container echo service 
+Uji dari Laptop B. Nilai host yang dikembalikan adalah ID container di Laptop A, bukan  nama Laptop B. 
+Ini bukti bahwa request benar-benar melintasi jaringan. 
+REM di Laptop B 
+C:\> curl http://192.168.137.53:8080 
+{"host": "a1b2c3d4e5f6", "waktu_unix": 1788969012.4471, "waktu_lokal": "14:30:12"} 
+Kode 1.12  Output echo service ketika diakses dari Laptop B 
+C.7  Mengukur RTT dan Clock Skew 
+Bagian ini adalah inti modul. Program berikut dijalankan di Laptop B dan menghubungi echo service di 
+Laptop A sebanyak tiga puluh kali. Untuk setiap request, program mencatat RTT, lalu memperkirakan  
+clock skew dengan membandingkan waktu yang dilaporkan Laptop A terhadap titik tengah antara saat 
+kirim dan saat terima. Perkiraan itu memakai asumsi bahwa perjalanan pergi dan pulang memakan 
+waktu yang kurang lebih sama. 
+Alamat Laptop A tidak ditulis di dalam kode. Alamat itu diberikan sebagai argumen saat program 
+dijalankan, sesuai aturan pada B.3. 
+
+===== PAGE 11 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 11 dari 12 
+import json, statistics, sys, time, urllib.request 
+  
+if len(sys.argv) != 2: 
+    print("cara pakai: python ukur.py http://<alamat-Laptop-A>:8080") 
+    sys.exit(1) 
+  
+SASARAN = sys.argv[1]  # alamat Laptop A diberikan saat program dijalankan 
+JUMLAH = 30 
+rtt, skew = [], [] 
+  
+for i in range(JUMLAH): 
+    t1 = time.time() 
+    with urllib.request.urlopen(SASARAN, timeout=5) as r: 
+        data = json.loads(r.read().decode("utf-8")) 
+    t4 = time.time() 
+    rtt.append((t4 - t1) * 1000) 
+    tengah = (t1 + t4) / 2  # perkiraan waktu lokal saat Laptop A menjawab 
+    skew.append((data["waktu_unix"] - tengah) * 1000) 
+    time.sleep(0.2) 
+  
+rtt.sort() 
+print("jumlah pengukuran :", JUMLAH) 
+print("RTT p50           : %.2f ms" % statistics.median(rtt)) 
+print("RTT p95           : %.2f ms" % rtt[int(0.95 * JUMLAH) - 1]) 
+print("RTT min           : %.2f ms" % rtt[0]) 
+print("RTT maks          : %.2f ms" % rtt[-1]) 
+print("clock skew (rata) : %.2f ms" % statistics.mean(skew)) 
+Kode 1.13  File ukur.py untuk mengukur RTT dan clock skew 
+Contoh output. Angka di laptop Anda akan berbeda, dan justru perbedaan itulah yang menarik untuk 
+dibahas. 
+REM di Laptop B, ganti 192.168.137.53 dengan alamat Laptop A 
+C:\> python ukur.py http://192.168.137.53:8080 
+jumlah pengukuran : 30 
+RTT p50           : 4.83 ms 
+RTT p95           : 11.27 ms 
+RTT min           : 3.10 ms 
+RTT maks          : 18.64 ms 
+clock skew (rata) : 372.51 ms 
+Kode 1.14  Contoh output ukur.py 
+Baris terakhir adalah pokok persoalannya.  Clock skew ratusan milidetik antara dua laptop yang 
+berjarak setengah meter adalah hal yang lumrah. Bila Laptop A mencatat sebuah peristiwa terjadi pukul 
+14:30:12,900 dan Laptop B mencatat peristiwa lain pukul 14:30:12,700, Anda tidak bisa menyimpulkan 
+mana yang lebih dulu terjadi. Simpan angka ini, karena ia dirujuk kembali pada Pertemuan 5. 
+Checkpoint Praktikum 1.  Praktikum 2 dimulai dari lingkungan ini. Pastikan ketiga hal berikut 
+terpenuhi. 
+•   Ping berbalas dari kedua arah. 
+•   Halaman edge-api di Laptop A terbuka dari browser Laptop B. 
+•   RTT dan clock skew sudah tercatat di Lembar Hasil Praktikum. 
+D.  TUGAS MAHASISWA 
+1. Lakukan seluruh langkah pada bagian C secara berkelompok menggunakan  dua laptop. Pastikan 
+Anda memahami maksud setiap perintah, bukan sekadar menyalinnya. 
+
+===== PAGE 12 =====
+Modul Praktikum 1 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 12 dari 12 
+2. Isi Lembar Hasil Praktikum di bawah ini. Lembar ini dan lingkungan yang Anda bangun menjadi 
+bahan demo Checkpoint 1 pada Pertemuan 9. 
+3. Ulangi pengukuran pada C.7 dalam dua kondisi jaringan yang berbeda, misalnya laptop berdekatan 
+dan laptop berjarak sekitar sepuluh meter atau terhalang dinding. Bandingkan nilai p50 dan p95 
+pada kedua kondisi, lalu jelaskan mengapa keduanya berubah dengan pola yang berbeda. 
+4. Jelaskan secara ringkas, dengan bahasa Anda sendiri, mengapa service yang di -bind ke 127.0.0.1 
+tidak bisa dijangkau dari laptop seberang, sementara service yang di-bind ke 0.0.0.0 bisa. 
+5. Simpan seluruh file kerja kelompok di repositori bersama bernama skt -praktikum. Lingkungan 
+yang Anda bangun pada modul ini menjadi fondasi seluruh praktikum berikutnya. 
+Penggunaan AI generatif.  AI generatif boleh dipakai untuk memahami pesan error dan konsep. 
+Jawaban tugas nomor 3 dan 4 ditulis dengan kata -kata sendiri  dan wajib merujuk angka atau 
+pengamatan dari percobaan kelompok. Jawaban tanpa bukti dari percobaan sendiri dianggap belum 
+dikerjakan. 
+Lembar Hasil Praktikum 
+Butir yang Dicatat Hasil Pengamatan Kelompok 
+Nama dan anggota kelompok … 
+Nama jaringan hotspot di Laptop B … 
+Alamat IPv4 Laptop A … 
+Alamat IPv4 Laptop B … 
+Hasil ping dari Laptop A ke Laptop B (rata-
+rata) … ms 
+Hasil ping dari Laptop B ke Laptop A (rata-
+rata) … ms 
+RTT HTTP p50 … ms 
+RTT HTTP p95 … ms 
+Clock skew antarlaptop … ms 
+RTT p50 / p95 pada kondisi jaringan kedua 
+(Tugas 3) … ms / … ms 
+Kendala yang ditemui dan cara mengatasinya … 
+ 

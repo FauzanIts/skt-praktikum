@@ -1,0 +1,1340 @@
+
+
+===== PAGE 1 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 1 dari 29 
+ 
+KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI 
+UNIVERSITAS TADULAKO 
+FAKULTAS TEKNIK — JURUSAN TEKNOLOGI INFORMASI 
+PROGRAM STUDI S1 TEKNIK INFORMATIKA 
+Kampus Bumi Tadulako Tondo, Jl. Soekarno Hatta Km. 9, Palu — Sulawesi Tengah 
+Telp. (0451) 422611 – 422355  |  Fax. (0451) 422844  |  Email: untad@untad.ac.id 
+ 
+MODUL PRAKTIKUM — MATA KULIAH SISTEM KOMPUTASI TERDISTRIBUSI (F09252022) 
+ 
+Mata Kuliah Sistem Komputasi Terdistribusi Kode Mata Kuliah F09252022 
+Program Studi S1 Teknik Informatika Semester 5 (Lima) 
+Beban Studi 3 SKS (2 SKS teori + 1 SKS praktikum) Pekan Ke- 4–6 (Empat s.d. Enam) 
+Judul Praktikum Praktikum 2 — Komunikasi Antarproses Lintas Host: REST, gRPC, MQTT, dan GraphQL 
+Dosen Pengampu Rizka Ardiansyah, S.Kom., M.Kom. 
+A.  TUJUAN PRAKTIKUM (SUB-CPMK) 
+Setelah menyelesaikan praktikum ini, mahasiswa diharapkan mampu: 
+No. Tujuan Pembelajaran Praktikum Level 
+1 Menjelaskan perbedaan REST, gRPC, MQTT, dan GraphQL dari sisi pola komunikasi, format pesan, dan kontrak antarmuka. C2 
+2 Menjalankan beberapa service berbasis container di dua host menggunakan Docker Compose, dengan alamat lintas host dibaca dari file konfigurasi. C3 
+3 Mengimplementasikan komunikasi REST lintas host yang aman dikirim ulang menggunakan request_id yang idempoten. C3 
+4 Mengimplementasikan komunikasi gRPC berbasis kontrak Protocol Buffers, lalu membandingkan ukuran pesan dan RTT-nya dengan REST. C3 
+5 Mengimplementasikan publish–subscribe MQTT dengan persistent session dan membuktikan pesan tetap sampai setelah subscriber kembali hidup. C3 
+6 Menyediakan endpoint GraphQL untuk membaca data yang terkumpul di cloud host. C3 
+ 
+Pemetaan Capaian Pembelajaran 
+Kode Rumusan Capaian Pembelajaran 
+CPL-07 
+Memahami (C2) dan menerapkan (C3) protokol komunikasi dan arsitektur 
+infrastruktur komputer dan data untuk merancang sistem komunikasi yang andal dan 
+efisien (bahan kajian) dalam konteks layanan teknologi informasi modern (konteks). 
+
+
+===== PAGE 2 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 2 dari 29 
+Kode Rumusan Capaian Pembelajaran 
+CPMK-2 
+Mahasiswa mampu menerapkan konsep sistem komputasi terdistribusi ke dalam 
+purwarupa aplikasi berbasis integrasi edge–cloud, menggunakan perangkat dan 
+platform laboratorium sesuai spesifikasi studi kasus, dengan keberfungsian dan 
+kelengkapan dokumentasi minimal kategori Cukup (skala ≥ 3). 
+Sub-CPMK 4 
+Mengimplementasikan mekanisme komunikasi dan koordinasi antarproses pada 
+layanan terdistribusi yang tersebar di dua host fisik terinterkoneksi, menggunakan 
+kontainer dan pustaka komunikasi yang ditetapkan. 
+ 
+Alokasi Waktu 
+Tahapan Kegiatan Alokasi Waktu 
+Pre-Test – 
+Pelaksanaan Praktikum – 
+Post-Test – 
+Total Alokasi Waktu (sesuai RPS Pekan ke-4 s.d. ke-6) 510 menit 
+ 
+B.  LANDASAN TEORI 
+B.1  Dari Echo Service ke Empat Pola Komunikasi 
+Pada Praktikum 1, dua laptop Anda sudah saling terhubung, dan sebuah container di Laptop A sudah 
+bisa dihubungi dari Laptop B. Yang terjadi baru satu hal sederhana: Laptop B bertanya jam berapa, 
+Laptop A menjawab. Sistem terdistribusi sungguhan tidak berhe nti sampai di sana . Data harus bisa 
+mengalir dari satu node ke node lain. Sebagian harus sampai saat itu juga, sebagian boleh terlambat, dan 
+sebagian lagi hanya perlu dibaca. 
+Praktikum 2 membangun aliran data itu di atas lingkungan yang sudah Anda punya. Sebuah sensor 
+tiruan di Laptop A menghasilkan bacaan suhu. Bacaan itu dikirim oleh edge -api, container yang 
+berkembang dari echo service Praktikum 1, ke cloud-api di Laptop B. Jalur pengirimannya diganti setiap 
+pekan, agar Anda merasakan sendiri perbedaan pola komunikasi yang dibahas pada Pertemuan 3. 
+Pekan Pola Yang dibangun Pertanyaan yang dijawab 
+4 REST 
+cloud-api menerima bacaan lewat 
+HTTP. edge-api mengirim dengan 
+timeout dan kirim ulang. 
+Apa yang terjadi bila balasan 
+terlambat, dan bagaimana 
+mencegah data ganda? 
+5 gRPC Kontrak sensor.proto, server gRPC di cloud-api, client gRPC di edge-api. Apa untungnya kontrak tertulis dan pesan biner? 
+6 MQTT dan GraphQL Broker mosquitto, subscriber di cloud-api, endpoint GraphQL. 
+Bagaimana pesan tetap sampai 
+walau penerima sempat mati, dan 
+bagaimana membaca data sesuai 
+kebutuhan? 
+ 
+Topologi yang harus tercapai di akhir Pekan 6 digambarkan pada Gambar 2.1. Seperti pada Praktikum 
+1, Laptop B yang menyalakan hotspot. B.2 menjelaskan mengapa pembagian peran ini penting. 
+
+===== PAGE 3 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 3 dari 29 
+ 
+Gambar 2.1  Topologi sasaran pada akhir Praktikum 2 
+B.2  Docker Compose dan Cara Service Saling Menemukan 
+Pada Praktikum 1, container dijalankan satu per satu dengan docker run . Cara itu cepat merepotkan 
+begitu jumlah container bertambah, karena setiap perintah harus mengingat nama image, port, dan 
+variabel lingkungannya. Docker Compose menyimpan semua itu di satu file bernama docker -
+compose.yml. Cukup satu perintah, docker compose up, dan seluruh container di dalam file itu dibangun 
+lalu dijalankan bersama. 
+Compose juga menjawab persoalan yang dibahas pada Pertemuan 2: bagaimana satu service 
+menemukan service lain. Di dalam satu file Compose, setiap service otomatis bisa dihubungi memakai 
+namanya. Container sensor -sim cukup menulis http://edge-api:8000, lalu  DNS internal Compose 
+menerjemahkan nama edge-api menjadi alamat container yang benar. 
+Nama itu hanya berlaku di dalam satu laptop. Laptop A tidak tahu apa pun tentang file Compose di 
+Laptop B, sehingga edge -api tidak bisa menulis http://cloud-api. Lintas host, yang dipakai tetap 
+alamat IP laptop tujuan dan port yang di -publish di sana. Alamat itu disimpan di file .env, bukan ditulis 
+di kode, sesuai aturan Praktikum 1. 
+
+
+===== PAGE 4 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 4 dari 29 
+ 
+Gambar 2.2  Dua cara sebuah service menemukan service lain 
+Karena edge yang selalu menghubungi cloud, yang harus beralamat tetap adalah cloud. Pada Windows 
+Mobile hotspot, laptop yang menyalakan hotspot selalu mendapat alamat 192.168.137.1, sedangkan 
+laptop yang menyambung mendapat alamat yang bisa berubah. Karena itu, sejak Praktikum 1 Laptop B 
+sebagai cloud host yang menyalakan hotspot. Pola ini sama dengan penggelaran nyata: server cloud 
+punya alamat yang bisa ditemukan, sementara perangkat edge datang dan pergi. 
+B.3  REST, Timeout, dan Operasi yang Aman Diulang 
+REST memperlakukan  data sebagai resource yang punya alamat. Pada praktikum ini resource -nya 
+adalah /bacaan di cloud-api. Menambah bacaan dilakukan dengan POST /bacaan, dan membaca daftar 
+bacaan dengan GET /bacaan. Pesan dikirim sebagai JSON di atas HTTP, sehingga mudah dibaca manusia 
+dan mudah diuji dari browser atau curl. 
+REST bersifat sinkron: edge -api mengirim request lalu menunggu balasan. Penantian itu tidak boleh 
+tanpa batas, jadi edge -api memasang timeout satu detik. Bila balasan tidak datang dalam satu detik , 
+request dianggap gagal dan dikirim ulang. Kebijakan kirim ulang sampai berhasil ini disebut at -least-
+once. 
+Di sinilah jebakan yang dibahas pada Pertemuan 3 muncul dalam bentuk nyata. Timeout tidak berarti 
+request hilang. Bisa jadi request sudah sampai dan sudah disimpan, hanya balasannya yang terlambat 
+karena server sedang sibuk. Dari sisi edge-api, keduanya tampak sama: tidak ada balasan. Bila edge-api 
+mengirim ulang, cloud-api menyimpan bacaan yang sama untuk kedua kalinya. 
+
+
+===== PAGE 5 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 5 dari 29 
+ 
+Gambar 2.3  Timeout, kirim ulang, dan data ganda 
+Jalan keluarnya bukan menghapus kirim ulang, melainkan membuat operasi simpan menjadi 
+idempoten: dijalankan sekali atau berkali -kali, hasil akhirnya sama. Caranya, edge -api memberi setiap 
+bacaan sebuah request_id unik yang tidak berubah walau dikirim ulang. Sebelum menyimpan, cloud-api 
+memeriksa apakah request_id itu sudah pernah tersimpan. Bila sudah, request tetap diterima tetapi 
+tidak disimpan lagi. 
+Catatan penting.  Pada Pekan 4 Anda sengaja membuat cloud -api lambat melalui variabel 
+LAMBAT_PERSEN. Ini bukan kesalahan program. Ini cara memunculkan gejala yang di dunia nyata 
+datang dari server yang sibuk atau jaringan yang padat. 
+B.4  gRPC dan Kontrak Protocol Buffers 
+gRPC adalah penerus modern RPC. Programmer memanggil fungsi seolah -olah fungsi lokal, misalnya 
+stub.Kirim(bacaan), padahal fungsi itu dijalankan di laptop lain. Yang membedakannya dari REST 
+adalah urutan kerjanya: kontrak ditulis lebih dulu, kode menyusul. 
+Kontrak ditulis dalam file .proto memakai bahasa Protocol Buffers. File itu menyebutkan fungsi apa saja 
+yang tersedia dan seperti apa bentuk pesannya. Dari satu file .proto, alat grpc_tools.protoc 
+membangkitkan dua file Python. File sensor_pb2.py berisi kelas pesan, dan sensor_pb2_grpc.py berisi 
+stub untuk client serta kerangka servicer untuk server. Kedua laptop harus memakai salinan file .proto 
+yang identik. 
+
+
+===== PAGE 6 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 6 dari 29 
+ 
+Gambar 2.4  Satu kontrak, dua sisi 
+Setiap field di file .proto diberi nomor, misalnya double nilai = 2 . Nomor inilah, bukan nama field, 
+yang ikut dikirim bersama nilainya dalam bentuk biner. Akibatnya pesan jauh lebih ringkas daripada 
+JSON, tetapi tidak bisa dibaca langsung oleh manusia. gRPC berjalan di atas HTTP/2, yang 
+memungkinkan banyak panggilan berbagi satu koneksi. 
+Kontrak sensor.proto pada praktikum ini sama dengan contoh di slide Pertemuan 3, ditambah dua field: 
+request_id dan seq. Dengan begitu, mekanisme idempoten dari Pekan 4 tetap berlaku ketika jalurnya 
+diganti ke gRPC. 
+B.5  MQTT, Publish–Subscribe, dan Persistent Session 
+REST dan gRPC menuntut pengirim dan penerima hidup pada saat yang sama. Bila cloud-api mati, edge-
+api hanya bisa mencoba lagi lalu menyerah. MQTT melepaskan syarat itu dengan menaruh perantara di 
+tengah, yaitu broker. Pada praktikum ini broker-nya adalah mosquitto, yang berjalan sebagai container 
+di Laptop B. 
+Pengirim, disebut publisher, menulis pesan ke sebuah topic, misalnya skt/laptop-a/suhu. Penerima, 
+disebut subscriber, berlangganan topic yang ia minati. Tanda + pada skt/+/suhu berarti satu tingkat  
+topic apa pun, sehingga cloud -api menerima suhu dari semua node. Publisher tidak tahu siapa 
+subscriber-nya, dan tidak menunggu pesannya diproses. 
+MQTT mengenal tiga tingkat jaminan pengiriman yang disebut QoS. Namanya mirip istilah semantik 
+pemanggilan pada slide Pertemuan 3, tetapi padanannya tidak persis sama. Tabel berikut 
+menyelaraskan keduanya agar tidak tertukar. 
+QoS Nama di MQTT Perilaku Padanan di slide Pertemuan 3 
+0 at most once Dikirim sekali tanpa konfirmasi. Bila penerima tidak siap, pesan hilang. Kirim sekali, sudah 
+1 at least once Dikirim ulang sampai ada konfirmasi. Pesan bisa diterima lebih dari sekali. At-least-once 
+
+
+===== PAGE 7 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 7 dari 29 
+QoS Nama di MQTT Perilaku Padanan di slide Pertemuan 3 
+2 exactly once Jabat tangan empat langkah agar pesan tidak hilang dan tidak ganda. Tidak ada padanan langsung; paling mahal 
+ 
+Jangan terkecoh nama QoS 0. MQTT menyebutnya at most once, tetapi perilakunya sama dengan kolom 
+Kirim sekali, sudah  pada slide, bukan kolom at -most-once yang memakai nomor request untuk 
+membuang kiriman kembar. Praktikum ini memakai QoS 1, dan QoS 0 dipakai sebagai pembanding. 
+Persistent session adalah kunci percobaan Pekan 6. Bila subscriber tersambung dengan 
+clean_session=False dan client_id yang selalu sama, broker mengingat langganannya. Selama 
+subscriber mati, broker menyimpan pesan QoS 1 yang ditujukan kepadanya, lalu mengirim seluruhnya 
+begitu subscriber tersambung kembali. Pesan QoS 0 tidak ikut disimpan. 
+ 
+Gambar 2.5  Broker menyimpan pesan untuk subscriber yang sedang mati 
+Inilah wujud komunikasi persisten dan asinkron yang dibahas pada Pertemuan 3: pesan menunggu di 
+antrean sampai penerimanya siap. 
+B.6  GraphQL: Membaca Data Sesuai Kebutuhan 
+Tiga pola sebelumnya dipakai untuk mengirim data dari edge ke cloud. GraphQL dipakai di sisi lain, yaitu 
+membaca data yang sudah terkumpul. Pada REST, bentuk balasan ditentukan server. GET /bacaan selalu 
+mengembalikan semua field, walau aplikasi yang memanggil hanya butuh dua. Kebutuhan lain, seperti 
+rata-rata suhu, memerlukan endpoint tersendiri. 
+GraphQL membalik aturan itu. Server menyediakan satu endpoint, /graphql, beserta schema yang 
+menjelaskan data apa saja yang bisa diminta. Client menulis query yang menyebutkan field yang ia 
+butuhkan, dan server mengembalikan tepat field itu. Setiap field dalam schema dilayani oleh sebuah 
+fungsi yang disebut resolver. 
+
+
+===== PAGE 8 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 8 dari 29 
+ 
+Gambar 2.6  REST mengembalikan bentuk tetap, GraphQL mengembalikan yang diminta 
+Library GraphQL yang dipakai adalah Strawberry. Strawberry otomatis mengubah nama field bergaya 
+Python seperti rata_rata menjadi gaya GraphQL, rataRata. Strawberry juga menyediakan GraphiQL, 
+halaman di browser untuk mencoba query tanpa menulis kode apa pun. Seluruh perangkat lunak pada 
+modul ini gratis dan berjalan lokal di laptop Anda. Tidak ada layanan cloud berbayar yang dipakai. 
+C.  IMPLEMENTASI PRAKTIKUM 
+Bagian C dibagi menjadi tiga pekan. Setiap pekan dirancang untuk 170 menit dan ditutup dengan 
+checkpoint. Jangan melanjutkan ke pekan berikutnya sebelum checkpoint pekan berjalan terpenuhi, 
+karena setiap pekan dibangun di atas hasil pekan sebelumnya. 
+Pekan Bagian Fokus Waktu 
+4 C.1 – C.6 Persiapan, Docker Compose, REST, kirim ulang, dan idempoten 170 menit 
+5 C.7 – C.9 Kontrak gRPC, server dan client gRPC, pengukuran REST dan gRPC 170 menit 
+6 C.10 – C.13 Broker MQTT, persistent session, dan GraphQL 170 menit 
+Total   510 menit 
+ 
+PEKAN 4 — REST LINTAS HOST DAN OPERASI YANG AMAN DIULANG 
+C.1  Persiapan Sebelum Praktikum 
+Seluruh image dan library pada modul ini diunduh dari internet, sedangkan hotspot antarlaptop 
+umumnya tidak menyediakan internet yang stabil. Karena itu, unduh image dan jalankan build pertama 
+di awal Pekan 4 selagi laptop masih tersambung ke internet. Setelah image terbangun, build ulang pada 
+pekan berikutnya tidak lagi butuh internet, karena Docker menyi mpan hasil pemasangan library 
+sebagai cache. 
+
+
+===== PAGE 9 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 9 dari 29 
+Kebutuhan Keterangan 
+Hasil Praktikum 1 Kedua laptop sudah bisa saling ping, dan aturan firewall dari Praktikum 1 masih ada. 
+Docker Desktop Sudah terpasang sejak Praktikum 1. Docker Compose sudah termasuk di dalamnya. 
+Visual Studio Code Editor gratis untuk membuat dan mengubah file. Hindari Notepad, karena Notepad sering menyimpan .env menjadi .env.txt. 
+Repositori kelompok Folder skt-praktikum dari Praktikum 1, tersedia di kedua laptop. 
+ 
+Jalankan perintah berikut di kedua laptop, selagi tersambung ke internet. 
+docker pull python:3.12-slim 
+docker pull eclipse-mosquitto:2 
+docker compose version 
+Kode 2.1  Mengunduh image yang dipakai selama tiga pekan 
+C.2  Memastikan Hotspot di Laptop B 
+Nyalakan Mobile hotspot di Laptop B seperti pada Praktikum 1, lalu sambungkan Laptop A ke jaringan 
+tersebut. Bila kelompok Anda sebelumnya menyalakan hotspot di Laptop A, pindahkan sekarang ke 
+Laptop B. Setelah itu periksa alamat Laptop B dan uji keterjangkauannya dari Laptop A. 
+REM di Laptop B 
+C:\> ipconfig 
+Wireless LAN adapter Local Area Connection* 10: 
+   IPv4 Address. . . . . . . . . . . : 192.168.137.1 
+  
+REM di Laptop A 
+C:\> ping 192.168.137.1 
+Reply from 192.168.137.1: bytes=32 time=4ms TTL=128 
+Reply from 192.168.137.1: bytes=32 time=3ms TTL=128 
+Kode 2.2  Memastikan Laptop B beralamat 192.168.137.1 dan terjangkau dari Laptop A 
+Berikutnya, buka port yang dipakai selama tiga pekan. Jalankan perintah berikut di Command Prompt 
+sebagai Administrator, di kedua laptop. Satu aturan ini sudah mencakup seluruh port baru. 
+netsh advfirewall firewall add rule name="Port Praktikum 2 SKT" ^ 
+    protocol=TCP dir=in localport=8080,9090,50051,1883 action=allow 
+Kode 2.3  Membuka port 8080, 9090, 50051, dan 1883 pada Windows Defender Firewall 
+Bila ping gagal.  Ulangi daftar periksa pada Gambar 1.6 Praktikum 1. Penyebab paling sering tetap 
+sama: salah satu laptop masih tersambung ke Wi-Fi kampus, bukan ke hotspot Laptop B. 
+C.3  Menyusun Struktur Folder 
+Buat struktur folder berikut di dalam repositori kelompok. Folder laptop -a hanya dijalankan di Laptop 
+A, dan folder laptop -b hanya dijalankan di Laptop B. Menyimpan keduanya di satu repositori 
+memudahkan kelompok melihat kode kedua sisi sekaligus. 
+
+===== PAGE 10 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 10 dari 29 
+skt-praktikum/ 
+├── laptop-a/                 ← dijalankan di Laptop A 
+│   ├── .env 
+│   ├── docker-compose.yml 
+│   ├── sensor-sim/ 
+│   │   ├── Dockerfile 
+│   │   └── sensor.py 
+│   └── edge-api/ 
+│       ├── Dockerfile 
+│       ├── requirements.txt 
+│       ├── app.py 
+│       └── kirim.py 
+└── laptop-b/                 ← dijalankan di Laptop B 
+    ├── .env 
+    ├── docker-compose.yml 
+    └── cloud-api/ 
+        ├── Dockerfile 
+        ├── requirements.txt 
+        ├── app.py 
+        └── penyimpanan.py 
+Kode 2.4  Struktur folder pada akhir Pekan 4 
+File untuk Pekan 5 dan Pekan 6 akan ditambahkan ke struktur yang sama. 
+C.4  Membangun cloud-api di Laptop B 
+cloud-api menerima bacaan dan menyimpannya di database SQLite. Mulailah dari file yang mengurus 
+penyimpanan. Bagian terpenting ada di fungsi simpan. Bila IDEMPOTEN bernilai 1, request_id diperiksa 
+lebih dulu. Bagian akhirnya sengaja memperlambat balasan sesuai nilai LAMBAT_PERSEN, dan 
+perlambatan itu terjadi setelah data tersimpan. 
+import os 
+import random 
+import sqlite3 
+import threading 
+import time 
+  
+DB_PATH = os.getenv("DB_PATH", "/data/cloud.db") 
+IDEMPOTEN = os.getenv("IDEMPOTEN", "0") == "1" 
+LAMBAT_PERSEN = int(os.getenv("LAMBAT_PERSEN", "0")) 
+LAMBAT_MS = int(os.getenv("LAMBAT_MS", "1500")) 
+  
+_kunci = threading.Lock() 
+_db = sqlite3.connect(DB_PATH, check_same_thread=False) 
+_db.row_factory = sqlite3.Row 
+_db.execute(""" 
+    CREATE TABLE IF NOT EXISTS bacaan ( 
+        id         INTEGER PRIMARY KEY AUTOINCREMENT, 
+        request_id TEXT, 
+        node_id    TEXT, 
+        seq        INTEGER, 
+        nilai      REAL, 
+        waktu      INTEGER, 
+        jalur      TEXT 
+    )""") 
+  
+  
+def simpan(p, jalur): 
+    duplikat = False 
+    with _kunci: 
+        if IDEMPOTEN: 
+            sudah_ada = _db.execute( 
+                "SELECT 1 FROM bacaan WHERE request_id = ?", 
+
+===== PAGE 11 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 11 dari 29 
+                (p["request_id"],)).fetchone() 
+            duplikat = sudah_ada is not None 
+        if not duplikat: 
+            _db.execute( 
+                "INSERT INTO bacaan (request_id, node_id, seq, nilai, waktu, jalur)" 
+                " VALUES (?, ?, ?, ?, ?, ?)", 
+                (p["request_id"], p["node_id"], p["seq"], 
+                 p["nilai"], p["waktu"], jalur)) 
+            _db.commit() 
+    # simulasi server sibuk: data SUDAH tersimpan, tetapi balasannya terlambat 
+    if random.randint(1, 100) <= LAMBAT_PERSEN: 
+        time.sleep(LAMBAT_MS / 1000) 
+    return {"tersimpan": not duplikat, "duplikat": duplikat} 
+  
+  
+def statistik(): 
+    with _kunci: 
+        total, unik = _db.execute( 
+            "SELECT COUNT(*), COUNT(DISTINCT request_id) FROM bacaan").fetchone() 
+    return {"baris_tersimpan": total, "request_id_unik": unik, 
+            "data_ganda": total - unik} 
+  
+  
+def ambil(terakhir=10, node_id=None, jalur=None): 
+    with _kunci: 
+        baris = _db.execute( 
+            "SELECT * FROM bacaan" 
+            " WHERE (? IS NULL OR node_id = ?) AND (? IS NULL OR jalur = ?)" 
+            " ORDER BY id DESC LIMIT ?", 
+            (node_id, node_id, jalur, jalur, terakhir)).fetchall() 
+    return [dict(b) for b in baris] 
+  
+  
+def ringkasan(node_id=None): 
+    with _kunci: 
+        n, rata, mn, mx = _db.execute( 
+            "SELECT COUNT(*), AVG(nilai), MIN(nilai), MAX(nilai) FROM bacaan" 
+            " WHERE (? IS NULL OR node_id = ?)", (node_id, node_id)).fetchone() 
+    return {"jumlah": n, "rata_rata": rata, "minimum": mn, "maksimum": mx} 
+Kode 2.5  File laptop-b/cloud-api/penyimpanan.py 
+Berikutnya app.py, yang mendefinisikan endpoint REST. Baris bertanda # [PEKAN 5] dan # [PEKAN 6] 
+dibiarkan sebagai komentar dulu. Baris itu diaktifkan pada pekan berikutnya. 
+from contextlib import asynccontextmanager 
+  
+from fastapi import FastAPI 
+from pydantic import BaseModel 
+  
+import penyimpanan as db 
+  
+  
+@asynccontextmanager 
+async def lifespan(app): 
+    # [PEKAN 5] jalankan server gRPC di port 50051 
+    # from grpc_server import mulai_grpc 
+    # mulai_grpc() 
+  
+    # [PEKAN 6] jalankan subscriber MQTT 
+    # from mqtt_subscriber import mulai_mqtt 
+    # mulai_mqtt() 
+    yield 
+
+===== PAGE 12 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 12 dari 29 
+  
+  
+app = FastAPI(title="cloud-api", lifespan=lifespan) 
+  
+# [PEKAN 6] pasang endpoint GraphQL di /graphql 
+# from graphql_schema import graphql_app 
+# app.include_router(graphql_app, prefix="/graphql") 
+  
+  
+class Bacaan(BaseModel): 
+    request_id: str 
+    node_id: str 
+    seq: int 
+    nilai: float 
+    waktu: int 
+  
+  
+@app.post("/bacaan", status_code=201) 
+def terima_bacaan(b: Bacaan): 
+    return db.simpan(b.model_dump(), jalur="rest") 
+  
+  
+@app.get("/bacaan") 
+def daftar_bacaan(terakhir: int = 10): 
+    return db.ambil(terakhir) 
+  
+  
+@app.get("/statistik") 
+def statistik(): 
+    return db.statistik() 
+Kode 2.6  File laptop-b/cloud-api/app.py 
+Daftar library ditulis sekaligus untuk tiga pekan, agar image cukup dibangun sekali selagi ada internet. 
+fastapi==0.141.1 
+uvicorn==0.53.0 
+grpcio==1.84.0 
+grpcio-tools==1.84.0 
+paho-mqtt==2.1.0 
+strawberry-graphql==0.327.7 
+Kode 2.7  File laptop-b/cloud-api/requirements.txt 
+Dockerfile cloud -api mirip dengan Dockerfile echo service pada Praktikum 1. Baris RUN terakhir 
+membangkitkan kode gRPC hanya bila file sensor.proto sudah ada, jadi pada Pekan 4 baris itu dilewati. 
+Perintah uvicorn memakai --host 0.0.0.0, pelajaran yang sama dengan Praktikum 1. 
+FROM python:3.12-slim 
+WORKDIR /app 
+COPY requirements.txt . 
+RUN pip install --no-cache-dir -r requirements.txt 
+COPY . . 
+RUN if [ -f sensor.proto ]; then \ 
+      python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. sensor.proto; \ 
+    fi 
+EXPOSE 8000 50051 
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"] 
+Kode 2.8  File laptop-b/cloud-api/Dockerfile 
+
+===== PAGE 13 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 13 dari 29 
+File .env di Laptop B berisi tiga pengaturan percobaan. Untuk sekarang, biarkan semuanya bernilai 
+bawaan. 
+IDEMPOTEN=0 
+LAMBAT_PERSEN=0 
+LAMBAT_MS=1500 
+Kode 2.9  File laptop-b/.env 
+services: 
+  cloud-api: 
+    build: ./cloud-api 
+    ports: 
+      - "9090:8000" 
+      - "50051:50051" 
+    env_file: .env 
+    volumes: 
+      - data-cloud:/data 
+    restart: unless-stopped 
+  
+volumes: 
+  data-cloud: 
+Kode 2.10  File laptop-b/docker-compose.yml 
+Bagian ports mem-publish port 9090 untuk REST dan 50051 untuk gRPC. Bagian volumes menyimpan 
+database di volume bernama data -cloud, sehingga data tidak hilang ketika container dibuat ulang. 
+Bangun dan jalankan cloud-api. Build pertama butuh internet dan memakan beberapa menit. 
+cd skt-praktikum\laptop-b 
+docker compose up -d --build 
+docker compose logs -f cloud-api 
+  
+cloud-api-1  | INFO:     Started server process [1] 
+cloud-api-1  | INFO:     Waiting for application startup. 
+cloud-api-1  | INFO:     Application startup complete. 
+cloud-api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit) 
+Kode 2.11  Menjalankan cloud-api dan membaca log-nya 
+Tekan Ctrl+C untuk berhenti membaca log. Container tetap berjalan. Uji dari Laptop A, bukan dari 
+Laptop B. 
+REM di Laptop A 
+C:\> curl http://192.168.137.1:9090/statistik 
+{"baris_tersimpan":0,"request_id_unik":0,"data_ganda":0} 
+Kode 2.12  Menguji cloud-api dari Laptop A 
+Buka juga http://192.168.137.1:9090/docs di browser Laptop A. Halaman ini dibuat otomatis oleh 
+FastAPI dari kode app.py. Di sinilah terlihat sifat kontrak REST yang dibahas pada Pertemuan 3: 
+kontraknya opsional dan lahir dari kode, bukan ditulis lebih dulu. 
+C.5  Membangun sensor-sim dan edge-api di Laptop A 
+sensor-sim meniru sensor suhu. Setiap dua detik ia mengirim satu bacaan ke edge -api. Program ini 
+hanya memakai library bawaan Python, jadi image-nya tidak butuh requirements.txt. 
+
+===== PAGE 14 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 14 dari 29 
+import json 
+import os 
+import random 
+import time 
+import urllib.request 
+  
+EDGE_URL = os.getenv("EDGE_URL", "http://edge-api:8000") 
+INTERVAL_S = float(os.getenv("INTERVAL_S", "2")) 
+  
+suhu = 30.0 
+while True: 
+    # suhu bergerak pelan, seperti sensor sungguhan 
+    suhu = max(24.0, min(36.0, suhu + random.uniform(-0.4, 0.4))) 
+    badan = json.dumps({"nilai": round(suhu, 2)}).encode("utf-8") 
+    req = urllib.request.Request( 
+        EDGE_URL + "/bacaan", 
+        data=badan, 
+        headers={"Content-Type": "application/json"}, 
+    ) 
+    try: 
+        with urllib.request.urlopen(req, timeout=10) as r: 
+            print("sensor ->", r.read().decode("utf-8"), flush=True) 
+    except Exception as e: 
+        print("sensor -> gagal menghubungi edge-api:", e, flush=True) 
+    time.sleep(INTERVAL_S) 
+Kode 2.13  File laptop-a/sensor-sim/sensor.py 
+FROM python:3.12-slim 
+WORKDIR /app 
+COPY sensor.py . 
+CMD ["python", "sensor.py"] 
+Kode 2.14  File laptop-a/sensor-sim/Dockerfile 
+edge-api menerima bacaan dari sensor-sim, melengkapinya dengan request_id, node_id, dan nomor urut 
+seq, lalu meneruskannya ke cloud -api. Endpoint GET /  dari echo service Praktikum 1 tetap 
+dipertahankan, sehingga ukur.py dari Praktikum 1 masih bisa dipakai. 
+import itertools 
+import os 
+import socket 
+import time 
+import uuid 
+  
+from fastapi import FastAPI 
+from pydantic import BaseModel 
+  
+from kirim import PENGIRIM 
+  
+MODE = os.getenv("MODE", "rest") 
+NODE_ID = os.getenv("NODE_ID", "laptop-a") 
+nomor_urut = itertools.count(1) 
+  
+app = FastAPI(title="edge-api") 
+  
+  
+class BacaanSensor(BaseModel): 
+    nilai: float 
+  
+  
+@app.get("/") 
+def echo(): 
+
+===== PAGE 15 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 15 dari 29 
+    # echo service dari Praktikum 1 tetap dipertahankan 
+    return { 
+        "host": socket.gethostname(), 
+        "waktu_unix": time.time(), 
+        "waktu_lokal": time.strftime("%H:%M:%S"), 
+    } 
+  
+  
+@app.post("/bacaan") 
+def terima_dari_sensor(b: BacaanSensor): 
+    pesan = { 
+        "request_id": str(uuid.uuid4()),  # tetap sama walau dikirim ulang 
+        "node_id": NODE_ID, 
+        "seq": next(nomor_urut), 
+        "nilai": b.nilai, 
+        "waktu": int(time.time() * 1000), 
+    } 
+    hasil = PENGIRIM[MODE](pesan) 
+    return {"mode": MODE, "seq": pesan["seq"], **hasil} 
+Kode 2.15  File laptop-a/edge-api/app.py 
+Logika pengiriman dipisah ke kirim.py. Setiap pekan satu fungsi pengirim ditambahkan ke file ini. 
+Kamus PENGIRIM mencatat fungsi mana yang dipakai untuk setiap nilai MODE. 
+import logging 
+import os 
+  
+import httpx 
+  
+CLOUD_HOST = os.environ["CLOUD_HOST"] 
+TIMEOUT_S = float(os.getenv("TIMEOUT_S", "1")) 
+MAKS_COBA = int(os.getenv("MAKS_COBA", "3")) 
+log = logging.getLogger("uvicorn.error") 
+  
+  
+def kirim_rest(pesan): 
+    url = f"http://{CLOUD_HOST}:9090/bacaan" 
+    for coba in range(1, MAKS_COBA + 1): 
+        try: 
+            r = httpx.post(url, json=pesan, timeout=TIMEOUT_S) 
+            log.info("REST seq=%s coba=%s -> %s %s", 
+                     pesan["seq"], coba, r.status_code, r.text) 
+            return {"terkirim": True, "coba": coba} 
+        except httpx.TimeoutException: 
+            log.warning("REST seq=%s coba=%s -> timeout, kirim ulang", 
+                        pesan["seq"], coba) 
+        except httpx.TransportError as e: 
+            log.warning("REST seq=%s coba=%s -> gagal terhubung (%s)", 
+                        pesan["seq"], coba, type(e).__name__) 
+    return {"terkirim": False, "coba": MAKS_COBA} 
+  
+  
+PENGIRIM = {"rest": kirim_rest} 
+Kode 2.16  File laptop-a/edge-api/kirim.py 
+requirements.txt dan Dockerfile edge -api hampir sama dengan milik cloud -api. Bedanya, edge -api 
+memakai httpx sebagai HTTP client dan tidak butuh Strawberry. Baris EXPOSE hanya berisi port 8000. 
+
+===== PAGE 16 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 16 dari 29 
+fastapi==0.141.1 
+uvicorn==0.53.0 
+httpx==0.28.1 
+grpcio==1.84.0 
+grpcio-tools==1.84.0 
+paho-mqtt==2.1.0 
+Kode 2.17  File laptop-a/edge-api/requirements.txt 
+FROM python:3.12-slim 
+WORKDIR /app 
+COPY requirements.txt . 
+RUN pip install --no-cache-dir -r requirements.txt 
+COPY . . 
+RUN if [ -f sensor.proto ]; then \ 
+      python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. sensor.proto; \ 
+    fi 
+EXPOSE 8000 
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"] 
+Kode 2.18  File laptop-a/edge-api/Dockerfile 
+File .env di Laptop A menyimpan alamat Laptop B dan pengaturan pengiriman. Sesuaikan CLOUD_HOST 
+bila alamat Laptop B berbeda. 
+CLOUD_HOST=192.168.137.1 
+NODE_ID=laptop-a 
+MODE=rest 
+TIMEOUT_S=1 
+MAKS_COBA=3 
+Kode 2.19  File laptop-a/.env 
+services: 
+  edge-api: 
+    build: ./edge-api 
+    ports: 
+      - "8080:8000" 
+    env_file: .env 
+    restart: unless-stopped 
+  
+  sensor-sim: 
+    build: ./sensor-sim 
+    environment: 
+      EDGE_URL: http://edge-api:8000 
+      INTERVAL_S: "2" 
+    depends_on: 
+      - edge-api 
+    restart: unless-stopped 
+Kode 2.20  File laptop-a/docker-compose.yml 
+Ada dua cara penemuan layanan pada file di atas. sensor -sim menghubungi edge -api memakai nama 
+service, karena keduanya berada di satu laptop. edge -api membaca alamat Laptop B dari .env melalui 
+env_file. Bangun dan jalankan. 
+
+===== PAGE 17 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 17 dari 29 
+cd skt-praktikum\laptop-a 
+docker compose up -d --build 
+docker compose logs -f edge-api 
+  
+edge-api-1  | INFO:     REST seq=1 coba=1 -> 201 {"tersimpan":true,"duplikat":false} 
+edge-api-1  | INFO:     172.18.0.3:48122 - "POST /bacaan HTTP/1.1" 200 OK 
+edge-api-1  | INFO:     REST seq=2 coba=1 -> 201 {"tersimpan":true,"duplikat":false} 
+edge-api-1  | INFO:     172.18.0.3:48130 - "POST /bacaan HTTP/1.1" 200 OK 
+Kode 2.21  Menjalankan sensor-sim dan edge-api, lalu membaca log edge-api 
+Setiap dua detik satu bacaan mengalir dari sensor -sim, lewat edge -api, ke cloud -api di laptop lain. 
+Periksa sisi penerimanya dari Laptop B. 
+REM di Laptop B 
+C:\> curl http://localhost:9090/bacaan?terakhir=1 
+[{"id":12,"request_id":"3f0c9a1e-5b7d-4c2a-9e61-0d8b2f4a7c15","node_id":"laptop-a", 
+  "seq":12,"nilai":30.42,"waktu":1789571104397,"jalur":"rest"}] 
+Kode 2.22  Bacaan terakhir yang tersimpan di cloud-api 
+C.6  Percobaan: Balasan Terlambat dan Data Ganda 
+Langkah 1, memunculkan gejala.  Di Laptop B, ubah isi .env menjadi IDEMPOTEN=0 dan 
+LAMBAT_PERSEN=30. Artinya 30 persen request akan dibalas terlambat 1,5 detik, lebih lama dari timeout 
+edge-api. Kosongkan data lama, lalu jalankan ulang cloud-api. 
+REM di Laptop B, setelah .env diubah 
+docker compose down -v 
+docker compose up -d 
+Kode 2.23  Mengosongkan data dan menjalankan cloud-api dengan pengaturan baru 
+Perintah down -v menghapus container beserta volume data-cloud, sehingga hitungan dimulai dari nol. 
+Biarkan sistem berjalan satu menit sambil membaca log edge-api di Laptop A. 
+edge-api-1  | INFO:     REST seq=41 coba=1 -> 201 {"tersimpan":true,"duplikat":false} 
+edge-api-1  | WARNING:  REST seq=42 coba=1 -> timeout, kirim ulang 
+edge-api-1  | INFO:     REST seq=42 coba=2 -> 201 {"tersimpan":true,"duplikat":false} 
+edge-api-1  | WARNING:  REST seq=44 coba=1 -> timeout, kirim ulang 
+edge-api-1  | WARNING:  REST seq=44 coba=2 -> timeout, kirim ulang 
+edge-api-1  | INFO:     REST seq=44 coba=3 -> 201 {"tersimpan":true,"duplikat":false} 
+Kode 2.24  Log edge-api ketika sebagian balasan terlambat 
+C:\> curl http://192.168.137.1:9090/statistik 
+{"baris_tersimpan":34,"request_id_unik":25,"data_ganda":9} 
+Kode 2.25  Statistik setelah satu menit dengan IDEMPOTEN=0 
+Setiap baris timeout berarti satu bacaan tersimpan lebih dari sekali. Bacaan seq=44 bahkan tersimpan 
+tiga kali, karena ketiga percobaannya sampai ke cloud -api. Dari sisi edge -api, semua kirim ulang itu 
+wajar. Ia tidak pernah tahu bahwa request sebelumnya sebenarnya sudah sampai. 
+Sesekali ketiga percobaan sama -sama timeout. Log edge -api lalu mencatat terkirim: false , padahal 
+cloud-api sudah menyimpan bacaan itu tiga kali. Inilah wujud nyata kalimat pada Pertemuan 3: Anda 
+tidak dapat membedakan penerima yang mati dari penerima yang lambat. 
+
+===== PAGE 18 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 18 dari 29 
+Langkah 2, membuat operasi idempoten.  Ubah .env di Laptop B menjadi IDEMPOTEN=1, biarkan 
+LAMBAT_PERSEN=30, lalu ulangi Kode 2.23. Setelah satu menit, log edge-api masih menampilkan timeout 
+dan kirim ulang, tetapi balasan untuk kiriman ulang kini berbeda. 
+edge-api-1  | WARNING:  REST seq=19 coba=1 -> timeout, kirim ulang 
+edge-api-1  | INFO:     REST seq=19 coba=2 -> 201 {"tersimpan":false,"duplikat":true} 
+  
+C:\> curl http://192.168.137.1:9090/statistik 
+{"baris_tersimpan":26,"request_id_unik":26,"data_ganda":0} 
+Kode 2.26  Kirim ulang tetap terjadi, tetapi data ganda hilang 
+Langkah 3, merapikan pengaturan.  Ubah .env di Laptop B menjadi IDEMPOTEN=1 dan 
+LAMBAT_PERSEN=0, lalu jalankan docker compose up -d. Pengaturan ini dipakai untuk Pekan 5 dan Pekan 
+6. 
+Checkpoint Pekan 4.  Lanjutkan ke Pekan 5 hanya bila ketiga hal berikut terpenuhi. 
+•   Log edge-api menampilkan baris REST seq=... -> 201 secara terus-menerus. 
+•   Percobaan IDEMPOTEN=0 menghasilkan data_ganda lebih dari 0, dan percobaan IDEMPOTEN=1 
+menghasilkan data_ganda 0. 
+•   Bagian Pekan 4 pada Lembar Hasil Praktikum sudah diisi dan diunggah ke LMS. 
+ 
+PEKAN 5 — gRPC DAN KONTRAK PROTOCOL BUFFERS 
+C.7  Menulis Kontrak sensor.proto 
+Buat file sensor.proto dengan isi yang sama persis di dua tempat: laptop -a/edge-api/ dan laptop -
+b/cloud-api/. Cara paling aman adalah membuatnya sekali, lalu menyalinnya ke folder kedua. Satu 
+karakter yang berbeda sudah cukup membuat kedua sisi salah paham. 
+syntax = "proto3"; 
+  
+package skt; 
+  
+service Sensor { 
+  rpc Kirim (Bacaan) returns (Status); 
+} 
+  
+message Bacaan { 
+  string node_id    = 1; 
+  double nilai      = 2; 
+  int64  waktu      = 3; 
+  string request_id = 4; 
+  int64  seq        = 5; 
+} 
+  
+message Status { 
+  bool diterima = 1; 
+  bool duplikat = 2; 
+} 
+Kode 2.27  File sensor.proto, identik di laptop-a/edge-api/ dan laptop-b/cloud-api/ 
+
+===== PAGE 19 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 19 dari 29 
+Bagian Artinya 
+syntax = "proto3"; Versi bahasa Protocol Buffers yang dipakai. 
+service Sensor Kumpulan fungsi yang bisa dipanggil dari laptop lain. 
+rpc Kirim (Bacaan) returns 
+(Status); 
+Fungsi Kirim menerima satu Bacaan dan mengembalikan satu 
+Status. 
+message Bacaan Bentuk pesan. Setiap field punya tipe, nama, dan nomor. 
+= 1, = 2, dan seterusnya Nomor field. Yang dikirim lewat jaringan adalah nomor ini, bukan nama field. Nomor yang sudah dipakai jangan diubah. 
+ 
+Anda tidak perlu menjalankan protoc secara manual. Dockerfile dari Pekan 4 sudah memuat 
+perintahnya, dan perintah itu kini aktif karena sensor.proto sudah ada di folder yang sama. 
+C.8  Server gRPC di Laptop B dan Client gRPC di Laptop A 
+Di Laptop B, buat file grpc_server.py di folder cloud-api. Kelas SensorServicer berisi fungsi Kirim yang 
+dipanggil setiap kali edge -api mengirim bacaan. Fungsi itu memakai simpan() yang sama dengan jalur 
+REST, jadi pemeriksaan request_id tetap berlaku. 
+from concurrent import futures 
+  
+import grpc 
+  
+import penyimpanan as db 
+import sensor_pb2 
+import sensor_pb2_grpc 
+  
+_server = None 
+  
+  
+class SensorServicer(sensor_pb2_grpc.SensorServicer): 
+    def Kirim(self, request, context): 
+        pesan = { 
+            "request_id": request.request_id, 
+            "node_id": request.node_id, 
+            "seq": request.seq, 
+            "nilai": request.nilai, 
+            "waktu": request.waktu, 
+        } 
+        hasil = db.simpan(pesan, jalur="grpc") 
+        return sensor_pb2.Status(diterima=True, duplikat=hasil["duplikat"]) 
+  
+  
+def mulai_grpc(port=50051): 
+    global _server 
+    _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10)) 
+    sensor_pb2_grpc.add_SensorServicer_to_server(SensorServicer(), _server) 
+    _server.add_insecure_port(f"0.0.0.0:{port}")  # ingat pelajaran Praktikum 1 
+    _server.start() 
+Kode 2.28  File laptop-b/cloud-api/grpc_server.py 
+Aktifkan server gRPC dengan menghapus tanda komentar pada dua baris kode di bawah # [PEKAN 5]  
+dalam app.py. Hapus tanda # beserta satu spasi sesudahnya, dan pertahankan empat spasi di awal baris. 
+Hasilnya seperti berikut. 
+
+===== PAGE 20 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 20 dari 29 
+@asynccontextmanager 
+async def lifespan(app): 
+    # [PEKAN 5] jalankan server gRPC di port 50051 
+    from grpc_server import mulai_grpc 
+    mulai_grpc() 
+  
+    # [PEKAN 6] jalankan subscriber MQTT 
+    # from mqtt_subscriber import mulai_mqtt 
+    # mulai_mqtt() 
+    yield 
+Kode 2.29  Bagian lifespan pada laptop-b/cloud-api/app.py setelah server gRPC diaktifkan 
+REM di Laptop B 
+cd skt-praktikum\laptop-b 
+docker compose up -d --build 
+Kode 2.30  Membangun ulang cloud-api 
+Build kali ini tidak butuh  internet. Docker memakai ulang layer pemasangan library dari Pekan 4, lalu 
+hanya menjalankan langkah COPY dan protoc. 
+Di Laptop A, tambahkan kode berikut di bagian paling bawah kirim.py. Baris terakhirnya mendaftarkan 
+kirim_grpc ke kamus PENGIRIM, sehingga kode Pekan 4 tidak perlu diubah. 
+# ===== [PEKAN 5] gRPC ===== 
+import grpc 
+  
+import sensor_pb2 
+import sensor_pb2_grpc 
+  
+_kanal = grpc.insecure_channel(f"{CLOUD_HOST}:50051") 
+_stub = sensor_pb2_grpc.SensorStub(_kanal) 
+  
+  
+def kirim_grpc(pesan): 
+    for coba in range(1, MAKS_COBA + 1): 
+        try: 
+            status = _stub.Kirim(sensor_pb2.Bacaan(**pesan), timeout=TIMEOUT_S) 
+            log.info("gRPC seq=%s coba=%s -> diterima=%s duplikat=%s", 
+                     pesan["seq"], coba, status.diterima, status.duplikat) 
+            return {"terkirim": True, "coba": coba} 
+        except grpc.RpcError as e: 
+            log.warning("gRPC seq=%s coba=%s -> %s", 
+                        pesan["seq"], coba, e.code().name) 
+    return {"terkirim": False, "coba": MAKS_COBA} 
+  
+  
+PENGIRIM["grpc"] = kirim_grpc 
+Kode 2.31  Tambahan di bagian bawah laptop-a/edge-api/kirim.py 
+Ubah baris MODE pada laptop-a/.env menjadi MODE=grpc, lalu bangun ulang edge-api. 
+REM di Laptop A 
+docker compose up -d --build 
+docker compose logs -f edge-api 
+  
+edge-api-1  | INFO:     gRPC seq=1 coba=1 -> diterima=True duplikat=False 
+edge-api-1  | INFO:     172.18.0.3:48310 - "POST /bacaan HTTP/1.1" 200 OK 
+edge-api-1  | INFO:     gRPC seq=2 coba=1 -> diterima=True duplikat=False 
+
+===== PAGE 21 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 21 dari 29 
+Kode 2.32  Log edge-api ketika bacaan dikirim lewat gRPC 
+Dari Laptop B, jalankan kembali perintah pada Kode 2.22. Kolom jalur pada bacaan terbaru kini bernilai 
+grpc. 
+Bila muncul UNAVAILABLE.  Artinya edge-api tidak dapat menjangkau port 50051 di Laptop B. Periksa 
+tiga hal secara berurutan: cloud-api sudah dibangun ulang setelah app.py diubah, port 50051 tercantum 
+pada output docker compose ps  di Laptop B, dan aturan firewall pada Kode 2.3 sudah dijalankan di 
+Laptop B. 
+C.9  Mengukur REST dan gRPC 
+Program ukur_protokol.py mengirim 200 bacaan lewat REST, lalu 200 bacaan lewat gRPC. Setiap jalur 
+memakai satu koneksi yang dipakai ulang, agar perbandingannya adil. Program ini juga menghitung 
+ukuran satu pesan dalam JSON dan dalam Protobuf. Pastikan LAMB AT_PERSEN di Laptop B bernilai 0 
+sebelum mengukur. 
+import json 
+import os 
+import statistics 
+import time 
+import uuid 
+  
+import grpc 
+import httpx 
+  
+import sensor_pb2 
+import sensor_pb2_grpc 
+  
+CLOUD_HOST = os.environ["CLOUD_HOST"] 
+JUMLAH = 200 
+  
+  
+def pesan_contoh(i): 
+    return {"request_id": str(uuid.uuid4()), "node_id": "uji-ukur", 
+            "seq": i, "nilai": 29.75, "waktu": int(time.time() * 1000)} 
+  
+  
+def ringkas(nama, data_ms): 
+    data_ms.sort() 
+    p50 = statistics.median(data_ms) 
+    p95 = data_ms[int(0.95 * len(data_ms)) - 1] 
+    print(f"{nama:<5} RTT p50 = {p50:6.2f} ms   p95 = {p95:6.2f} ms") 
+  
+  
+contoh = pesan_contoh(0) 
+ukuran_json = len(json.dumps(contoh).encode("utf-8")) 
+ukuran_pb = len(sensor_pb2.Bacaan(**contoh).SerializeToString()) 
+print(f"ukuran satu pesan : JSON = {ukuran_json} byte, Protobuf = {ukuran_pb} byte") 
+  
+# REST: satu koneksi dipakai ulang agar adil 
+with httpx.Client(timeout=5) as klien: 
+    url = f"http://{CLOUD_HOST}:9090/bacaan" 
+    klien.post(url, json=pesan_contoh(0))  # pemanasan 
+    hasil = [] 
+    for i in range(1, JUMLAH + 1): 
+        t1 = time.perf_counter() 
+        klien.post(url, json=pesan_contoh(i)) 
+        hasil.append((time.perf_counter() - t1) * 1000) 
+    ringkas("REST", hasil) 
+  
+
+===== PAGE 22 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 22 dari 29 
+# gRPC: satu channel dipakai ulang 
+with grpc.insecure_channel(f"{CLOUD_HOST}:50051") as kanal: 
+    stub = sensor_pb2_grpc.SensorStub(kanal) 
+    stub.Kirim(sensor_pb2.Bacaan(**pesan_contoh(0)))  # pemanasan 
+    hasil = [] 
+    for i in range(1, JUMLAH + 1): 
+        t1 = time.perf_counter() 
+        stub.Kirim(sensor_pb2.Bacaan(**pesan_contoh(i))) 
+        hasil.append((time.perf_counter() - t1) * 1000) 
+    ringkas("gRPC", hasil) 
+Kode 2.33  File laptop-a/edge-api/ukur_protokol.py 
+Program dijalankan di dalam container edge -api, sehingga Python di laptop tidak perlu memasang 
+library apa pun. Bangun ulang edge-api lebih dulu agar file baru ikut masuk ke image. 
+REM di Laptop A 
+docker compose up -d --build 
+docker compose exec edge-api python ukur_protokol.py 
+  
+ukuran satu pesan : JSON = 127 byte, Protobuf = 64 byte 
+REST  RTT p50 =   6.84 ms   p95 =  14.92 ms 
+gRPC  RTT p50 =   5.97 ms   p95 =  13.40 ms 
+Kode 2.34  Menjalankan pengukuran beserta contoh output-nya 
+Angka RTT di laptop Anda pasti berbeda, dan selisih REST dengan gRPC mungkin kecil. Pada pesan 
+sekecil ini, RTT lewat hotspot jauh lebih besar daripada waktu yang dihemat oleh format biner. Ukuran 
+pesan justru seharusnya sama persis dengan contoh: Protobuf hanya separuh JSON. Selisih ukuran 
+itulah yang menjadi berarti ketika jutaan pesan mengalir setiap hari. 
+Checkpoint Pekan 5.  Lanjutkan ke Pekan 6 hanya bila ketiga hal berikut terpenuhi. 
+•   Log edge-api menampilkan baris gRPC seq=... -> diterima=True. 
+•   Bacaan terbaru di cloud-api bernilai jalur grpc. 
+•   Ukuran pesan dan RTT REST serta gRPC sudah tercatat di Lembar Hasil Praktikum bagian Pekan 5. 
+ 
+PEKAN 6 — MQTT, PERSISTENT SESSION, DAN GraphQL 
+C.10  Menyalakan Broker dan Belajar dari Error Pertama 
+Sebelum menulis konfigurasi apa pun, jalankan dulu mosquitto apa adanya di Laptop B. Tujuannya 
+melihat satu kekeliruan yang sering terjadi. 
+REM di Laptop B 
+docker run --rm -p 1883:1883 eclipse-mosquitto:2 
+  
+Starting in local only mode. Connections will only be possible from clients running on this 
+machine. 
+Create a configuration file which defines a listener to allow remote access. 
+Kode 2.35  Menjalankan mosquitto tanpa konfigurasi 
+Biarkan jendela itu terbuka, lalu coba berlangganan dari Laptop A. Image eclipse-mosquitto yang sudah 
+diunduh pada Kode 2.1 juga berisi program mosquitto_sub. 
+
+===== PAGE 23 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 23 dari 29 
+REM di Laptop A 
+docker run --rm eclipse-mosquitto:2 mosquitto_sub -h 192.168.137.1 -t "skt/#" -v 
+Error: Connection refused 
+Kode 2.36  Percobaan berlangganan dari Laptop A yang gagal 
+Pesan error bisa juga berbunyi The connection was lost. Penyebabnya sudah tertulis di log Laptop B. 
+Sejak versi 2, mosquitto yang dijalankan tanpa listener hanya menerima koneksi dari dalam dirinya 
+sendiri. Ini persoalan yang sama dengan 127.0.0.1 pada Praktikum 1, kali ini muncul di konfigurasi 
+broker. Hentikan broker dengan Ctrl+C, lalu buat folder mosquitto dan file konfigurasinya di Laptop B. 
+# terima koneksi dari host lain di port 1883 
+listener 1883 
+# praktikum ini belum memakai username/password (dibahas di Modul 5) 
+allow_anonymous true 
+Kode 2.37  File laptop-b/mosquitto/mosquitto.conf 
+Ganti seluruh isi laptop -b/docker-compose.yml dengan versi Pekan 6 berikut. Service mosquitto 
+ditambahkan, dan cloud-api diberi variabel MQTT_HOST yang berisi nama service mosquitto. Keduanya 
+berada di satu laptop, jadi cukup memakai nama service. 
+services: 
+  cloud-api: 
+    build: ./cloud-api 
+    ports: 
+      - "9090:8000" 
+      - "50051:50051" 
+    env_file: .env 
+    environment: 
+      MQTT_HOST: mosquitto 
+    volumes: 
+      - data-cloud:/data 
+    depends_on: 
+      - mosquitto 
+    restart: unless-stopped 
+  
+  mosquitto: 
+    image: eclipse-mosquitto:2 
+    ports: 
+      - "1883:1883" 
+    volumes: 
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf 
+    restart: unless-stopped 
+  
+volumes: 
+  data-cloud: 
+Kode 2.38  File laptop-b/docker-compose.yml untuk Pekan 6 
+REM di Laptop B: jalankan broker saja lebih dulu 
+docker compose up -d mosquitto 
+  
+REM di Laptop A: berlangganan, biarkan jendela ini terbuka 
+docker run --rm eclipse-mosquitto:2 mosquitto_sub -h 192.168.137.1 -t "skt/#" -v 
+  
+REM di Laptop B: kirim satu pesan uji 
+docker compose exec mosquitto mosquitto_pub -t skt/uji/suhu -m "halo dari broker" 
+  
+REM output di jendela Laptop A 
+skt/uji/suhu halo dari broker 
+
+===== PAGE 24 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 24 dari 29 
+Kode 2.39  Menjalankan broker dan menguji publish–subscribe lintas host 
+Bila pesan uji muncul di Laptop A, broker sudah bisa dijangkau dari laptop lain. Jendela mosquitto_sub 
+itu dibiarkan terbuka untuk memantau lalu lintas pesan pada langkah berikutnya. 
+C.11  Subscriber di cloud-api dan Publisher di edge-api 
+Di Laptop B, buat file mqtt_subscriber.py di folder cloud -api. Dua pengaturan paling penting ada di 
+mqtt.Client: client_id yang selalu sama dan clean_session=False. Keduanya membuat broker 
+mengingat cloud-api walau cloud-api sempat mati. 
+import json 
+import logging 
+import os 
+  
+import paho.mqtt.client as mqtt 
+  
+import penyimpanan as db 
+  
+MQTT_HOST = os.getenv("MQTT_HOST", "mosquitto") 
+log = logging.getLogger("uvicorn.error") 
+_klien = None 
+  
+  
+def _saat_terhubung(client, userdata, flags, reason_code, properties): 
+    log.info("MQTT terhubung (session_present=%s)", flags.session_present) 
+    client.subscribe("skt/+/suhu", qos=1) 
+  
+  
+def _saat_pesan(client, userdata, msg): 
+    pesan = json.loads(msg.payload) 
+    hasil = db.simpan(pesan, jalur="mqtt") 
+    log.info("MQTT seq=%s -> %s", pesan["seq"], hasil) 
+  
+  
+def mulai_mqtt(): 
+    global _klien 
+    _klien = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, 
+                         client_id="cloud-api-subscriber", 
+                         clean_session=False) 
+    _klien.on_connect = _saat_terhubung 
+    _klien.on_message = _saat_pesan 
+    _klien.connect_async(MQTT_HOST, 1883) 
+    _klien.loop_start() 
+Kode 2.40  File laptop-b/cloud-api/mqtt_subscriber.py 
+Aktifkan subscriber dengan menghapus tanda komentar pada dua baris kode di bawah # [PEKAN 6] 
+jalankan subscriber MQTT  dalam app.py, seperti yang Anda lakukan pada Kode 2.29. Jangan dulu 
+mengaktifkan baris GraphQL. Pastikan .env di Laptop B masih bernilai  IDEMPOTEN=1 dan 
+LAMBAT_PERSEN=0, lalu bangun ulang. 
+REM di Laptop B 
+docker compose up -d --build 
+docker compose logs cloud-api 
+  
+cloud-api-1  | INFO:     Application startup complete. 
+cloud-api-1  | INFO:     MQTT terhubung (session_present=False) 
+Kode 2.41  Membangun ulang cloud-api dengan subscriber MQTT 
+
+===== PAGE 25 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 25 dari 29 
+Di Laptop A, tambahkan kode berikut di bagian paling bawah kirim.py. 
+# ===== [PEKAN 6] MQTT ===== 
+import json 
+  
+import paho.mqtt.client as mqtt 
+  
+QOS = int(os.getenv("QOS", "1")) 
+_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, 
+                    client_id="edge-api-publisher") 
+_mqtt.connect_async(CLOUD_HOST, 1883) 
+_mqtt.loop_start() 
+  
+  
+def kirim_mqtt(pesan): 
+    topik = f"skt/{pesan['node_id']}/suhu" 
+    info = _mqtt.publish(topik, json.dumps(pesan), qos=QOS) 
+    log.info("MQTT seq=%s -> topik=%s qos=%s rc=%s", 
+             pesan["seq"], topik, QOS, info.rc) 
+    return {"terkirim": info.rc == mqtt.MQTT_ERR_SUCCESS, 
+            "topik": topik, "qos": QOS} 
+  
+  
+PENGIRIM["mqtt"] = kirim_mqtt 
+Kode 2.42  Tambahan kedua di bagian bawah laptop-a/edge-api/kirim.py 
+Ubah laptop-a/.env menjadi MODE=mqtt, lalu tambahkan satu baris baru QOS=1. Bangun ulang edge-api. 
+REM di Laptop A 
+docker compose up -d --build 
+docker compose logs -f edge-api 
+  
+edge-api-1  | INFO:     MQTT seq=1 -> topik=skt/laptop-a/suhu qos=1 rc=0 
+edge-api-1  | INFO:     MQTT seq=2 -> topik=skt/laptop-a/suhu qos=1 rc=0 
+  
+REM di Laptop B 
+docker compose logs -f cloud-api 
+cloud-api-1  | INFO:     MQTT seq=1 -> {'tersimpan': True, 'duplikat': False} 
+cloud-api-1  | INFO:     MQTT seq=2 -> {'tersimpan': True, 'duplikat': False} 
+Kode 2.43  Bacaan mengalir lewat broker dari edge-api ke cloud-api 
+Nilai rc=0 berarti pesan berhasil diserahkan ke library MQTT untuk dikirim ke broker. Jendela 
+mosquitto_sub di Laptop A juga ikut menampilkan setiap pesan, karena ia berlangganan topic yang 
+cocok. 
+C.12  Percobaan: Subscriber Mati, Pesan Tetap Sampai 
+Percobaan ini membuktikan isi Gambar 2.5. Ikuti langkahnya secara berurutan. 
+No. Laptop Langkah 
+1 Laptop A Catat nomor seq terakhir pada log edge-api. 
+2 Laptop B Jalankan docker compose stop cloud-api. Tunggu 30 detik. 
+3 Laptop A Amati log edge-api dan jendela mosquitto_sub. Keduanya tetap berjalan, karena broker masih hidup. 
+4 Laptop A Catat lagi nomor seq terakhir pada log edge-api. 
+
+===== PAGE 26 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 26 dari 29 
+No. Laptop Langkah 
+5 Laptop B Jalankan docker compose start cloud-api, lalu docker compose logs --tail 20 cloud-api. 
+6 Laptop B Jalankan curl http://localhost:9090/bacaan?terakhir=30. Periksa apakah seq pada rentang langkah 1 dan 4 lengkap tanpa ada yang hilang. 
+ 
+cloud-api-1  | INFO:     MQTT terhubung (session_present=True) 
+cloud-api-1  | INFO:     MQTT seq=118 -> {'tersimpan': True, 'duplikat': False} 
+cloud-api-1  | INFO:     MQTT seq=119 -> {'tersimpan': True, 'duplikat': False} 
+cloud-api-1  | INFO:     MQTT seq=120 -> {'tersimpan': True, 'duplikat': False} 
+Kode 2.44  Log cloud-api sesaat setelah hidup kembali 
+Nilai session_present=True menandakan broker masih menyimpan sesi milik cloud -api-subscriber. 
+Belasan baris yang muncul hampir bersamaan adalah antrean pesan yang ditahan broker selama cloud-
+api mati. Bila seq pada langkah 6 lengkap, persistent session bekerja. Pada Tugas Mahasiswa, Anda akan 
+mengulang percobaan ini dengan QoS 0 dan dengan MODE rest untuk melihat perbedaannya. 
+C.13  Endpoint GraphQL 
+Di Laptop B, buat file graphql_schema.py di folder cloud-api. Kelas Bacaan dan Ringkasan menjadi type 
+dalam schema, sedangkan kelas Query berisi resolver yang membaca database lewat penyimpanan.py. 
+import strawberry 
+from strawberry.fastapi import GraphQLRouter 
+  
+import penyimpanan as db 
+  
+  
+@strawberry.type 
+class Bacaan: 
+    request_id: str 
+    node_id: str 
+    seq: int 
+    nilai: float 
+    jalur: str 
+  
+  
+@strawberry.type 
+class Ringkasan: 
+    jumlah: int 
+    rata_rata: float | None 
+    minimum: float | None 
+    maksimum: float | None 
+  
+  
+@strawberry.type 
+class Query: 
+    @strawberry.field 
+    def bacaan(self, terakhir: int = 10, node_id: str | None = None, 
+               jalur: str | None = None) -> list[Bacaan]: 
+        return [ 
+            Bacaan(request_id=b["request_id"], node_id=b["node_id"], 
+                   seq=b["seq"], nilai=b["nilai"], jalur=b["jalur"]) 
+            for b in db.ambil(terakhir, node_id, jalur) 
+        ] 
+  
+    @strawberry.field 
+
+===== PAGE 27 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 27 dari 29 
+    def ringkasan(self, node_id: str | None = None) -> Ringkasan: 
+        return Ringkasan(**db.ringkasan(node_id)) 
+  
+  
+graphql_app = GraphQLRouter(strawberry.Schema(query=Query)) 
+Kode 2.45  File laptop-b/cloud-api/graphql_schema.py 
+Aktifkan dua baris di bawah # [PEKAN 6] pasang endpoint GraphQL di /graphql dalam app.py. Kedua 
+baris ini berada di luar fungsi lifespan, jadi setelah tanda komentar dihapus, baris tersebut dimulai tanpa 
+spasi. 
+app = FastAPI(title="cloud-api", lifespan=lifespan) 
+  
+# [PEKAN 6] pasang endpoint GraphQL di /graphql 
+from graphql_schema import graphql_app 
+app.include_router(graphql_app, prefix="/graphql") 
+Kode 2.46  Bagian app.py setelah endpoint GraphQL diaktifkan 
+Bangun ulang cloud -api dengan docker compose up -d --build. Setelah itu buka 
+http://192.168.137.1:9090/graphql di browser Laptop A. Halaman GraphiQL akan terbuka. Tulis 
+query berikut di panel kiri, lalu tekan tombol jalankan. 
+{ 
+  ringkasan(nodeId: "laptop-a") { 
+    jumlah 
+    rataRata 
+    maksimum 
+  } 
+  bacaan(terakhir: 3, jalur: "mqtt") { 
+    seq 
+    nilai 
+    jalur 
+  } 
+} 
+Kode 2.47  Query GraphQL untuk ringkasan dan tiga bacaan MQTT terakhir 
+{ 
+  "data": { 
+    "ringkasan": { 
+      "jumlah": 412, 
+      "rataRata": 30.506176470588237, 
+      "maksimum": 33.87 
+    }, 
+    "bacaan": [ 
+      { "seq": 160, "nilai": 31.65, "jalur": "mqtt" }, 
+      { "seq": 159, "nilai": 31.39, "jalur": "mqtt" }, 
+      { "seq": 158, "nilai": 31.04, "jalur": "mqtt" } 
+    ] 
+  } 
+} 
+Kode 2.48  Contoh hasil query di GraphiQL 
+Hapus field jalur dari query, lalu jalankan lagi. Field itu langsung hilang dari hasil, tanpa ada kode server 
+yang diubah. Coba juga ganti nodeId menjadi uji-ukur. Ringkasan kini hanya menghitung bacaan dari 
+pengukuran Pekan 5, yaitu 402 bacaan untuk setiap kali program itu dijalankan. Bandingkan dengan 
+GET /bacaan?terakhir=1 pada Kode 2.22, yang selalu mengembalikan semua kolom. 
+
+===== PAGE 28 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 28 dari 29 
+Checkpoint Pekan 6.  Modul ini selesai bila ketiga hal berikut terpenuhi, bersama seluruh butir pada 
+Gambar 2.1. 
+•   Percobaan C.12 menunjukkan seq yang lengkap setelah cloud-api hidup kembali. 
+•   Query pada Kode 2.47 berjalan dari browser Laptop A. 
+•   Bagian Pekan 6 pada Lembar Hasil Praktikum sudah diisi dan diunggah ke LMS. 
+D.  TUGAS MAHASISWA 
+1. Lakukan seluruh langkah pada bagian C secara berkelompok menggunakan dua laptop. Isi Lembar 
+Hasil Praktikum di akhir setiap pekan dan unggah ke LMS sebagai penanda penyelesaian. Lembar 
+ini dan sistem yang Anda bangun menjadi bahan demo checkpoint 1 pada Pertemuan 9. 
+2. Ulangi percobaan C.6 dengan IDEMPOTEN=0 dan LAMBAT_PERSEN bernilai 10, 30, dan 60, masing -
+masing selama satu menit. Catat data_ganda dan request_id_unik untuk ketiganya. Jelaskan 
+hubungan antara LAMBAT_PERSEN, MAKS_COBA, dan jumlah data ganda per bacaan, lalu jelaskan 
+mengapa jumlah bacaan per menit ikut turun. 
+3. Cari satu bacaan di log edge -api yang ketiga percobaannya timeout. Jelaskan dengan bahasa Anda 
+sendiri mengapa edge-api mencatat terkirim: false, padahal cloud-api sudah menyimpan bacaan 
+tersebut. 
+4. Di Laptop A saja, ubah nomor field nilai pada sensor.proto dari 2 menjadi 6. Bangun ulang edge-api, 
+lalu kirim bacaan lewat gRPC selama beberapa detik. Periksa nilai yang tersimpan di cloud -api, 
+jelaskan apa yang terjadi, dan jelaskan mengapa nomor field, bukan nama field, yang menentukan. 
+Kembalikan nomornya menjadi 2 setelah selesai. 
+5. Ulangi percobaan C.12 dengan QOS=0 pada laptop-a/.env. Bandingkan seq yang hilang dengan hasil 
+percobaan QoS 1, lalu kaitkan hasilnya dengan tabel padanan QoS pada B.5. 
+6. Ubah MODE menjadi rest, lalu matikan cloud -api selama 30 detik seperti pada C.12. Bandingkan 
+nasib bacaan dari sensor -sim dengan hasil percobaan MQTT. Jelaskan perbedaannya memakai 
+istilah persisten–transien dan sinkron–asinkron dari Pertemuan 3. 
+7. Tambahkan field waktu: int  ke type Bacaan pada graphql_schema.py dan isi dengan nilai kolom 
+waktu dari database. Jalankan query yang meminta field tersebut. Catat pesan error yang muncul, 
+jelaskan penyebabnya, lalu kembalikan kodenya seperti semula. 
+8. Perbarui README.md di repositori kelompok dengan tabel host, service, port, dan cara 
+menjalankan setiap laptop. Tabel ini dipakai kembali sebagai dokumentasi Gerbang 1. 
+Penggunaan AI generatif.  AI generatif boleh dipakai untuk memahami pesan error dan konsep. 
+Jawaban tugas nomor 2 sampai 7 ditulis dengan kata-kata sendiri dan wajib merujuk log atau angka dari 
+percobaan kelompok. Jawaban tanpa bukti dari percobaan sendiri dianggap belum dikerjakan. 
+ 
+ 
+ 
+
+===== PAGE 29 =====
+Modul Praktikum 2 — Sistem Komputasi Terdistribusi (F09252022) 
+Program Studi S1 Teknik Informatika — Fakultas Teknik — Universitas Tadulako Halaman 29 dari 29 
+Lembar Hasil Praktikum 
+Butir yang Dicatat Hasil Pengamatan Kelompok 
+Nama dan anggota kelompok … 
+Pekan 4 — REST 
+Alamat IPv4 Laptop A (dari hotspot Laptop B) … 
+Alamat IPv4 Laptop B … 
+Statistik IDEMPOTEN=0, 
+LAMBAT_PERSEN=30 baris … | unik … | ganda … 
+Statistik IDEMPOTEN=1, 
+LAMBAT_PERSEN=30 baris … | unik … | ganda … 
+Data ganda untuk LAMBAT_PERSEN 10 / 30 / 
+60 (Tugas 2) … / … / … 
+Pekan 5 — gRPC 
+Ukuran satu pesan JSON / Protobuf … byte / … byte 
+RTT REST p50 / p95 … ms / … ms 
+RTT gRPC p50 / p95 … ms / … ms 
+Nilai yang tersimpan saat nomor field diubah 
+(Tugas 4) … 
+Pekan 6 — MQTT dan GraphQL 
+Rentang seq selama cloud-api mati, QoS 1 seq … s.d. … 
+Seq yang hilang dari rentang itu, QoS 1 … 
+Rentang seq selama cloud-api mati, QoS 0 
+(Tugas 5) seq … s.d. … 
+Seq yang hilang dari rentang itu, QoS 0 … 
+Hasil query ringkasan GraphQL (jumlah, 
+rataRata) … 
+Kendala yang ditemui dan cara mengatasinya … 
+ 
