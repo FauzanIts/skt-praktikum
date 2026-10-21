@@ -3,10 +3,31 @@ services:
     build: ./cloud-api
     ports:
       - "9090:8000"
+      - "50051:50051"
     env_file: .env
+    environment:
+      # Nama service broker di jaringan internal Compose (bukan localhost).
+      # Nilai ini menimpa MQTT_HOST bila kelak ada di .env.
+      MQTT_HOST: mosquitto
     volumes:
       - data-cloud:/data
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      # mosquitto.conf WAJIB sudah ada sebagai berkas sebelum "up", karena
+      # bind-mount ke path yang belum ada akan dibuat sebagai DIREKTORI dan
+      # mosquitto gagal start dengan pesan yang membingungkan.
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      # Named volume (bukan bind mount) supaya izin tulis uid mosquitto terjaga.
+      - data-mosquitto:/mosquitto/data
     restart: unless-stopped
 
 volumes:
   data-cloud:
+  data-mosquitto:

@@ -8,7 +8,7 @@ service Sensor {
 
 message Bacaan {
   string node_id    = 1;
-  double nilai      = 2;
+  double nilai      = 6;
   int64  waktu      = 3;
   string request_id = 4;
   int64  seq        = 5;
